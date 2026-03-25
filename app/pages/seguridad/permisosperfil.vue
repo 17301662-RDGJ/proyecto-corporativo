@@ -147,12 +147,18 @@ const guardar = async () => {
   for (let p of permisos.value) {
     console.log("Guardando:", p);
 
+    // 🔥 VALIDACIÓN (evita NaN o undefined)
+    if (!p.idmodulo) {
+      console.error("ID MODULO INVALIDO", p);
+      continue;
+    }
+
     // 🔍 Buscar si existe
     const { data: existe, error: errorSelect } = await supabase
       .from("permisos_perfil")
       .select("id")
-      .eq("idperfil", Number(p.idperfil))
-      .eq("idmodulo", Number(p.idmodulo));
+      .eq("idperfil", p.idperfil)
+      .eq("idmodulo", p.idmodulo);
 
     if (errorSelect) {
       console.error("Error SELECT:", errorSelect);
@@ -171,32 +177,31 @@ const guardar = async () => {
           imprimir: p.imprimir,
           bitacora: p.bitacora,
         })
-        .eq("idperfil", Number(p.idperfil))
-        .eq("idmodulo", Number(p.idmodulo));
+        .eq("idperfil", p.idperfil)
+        .eq("idmodulo", p.idmodulo);
 
       if (error) console.error("Error UPDATE:", error);
     } else {
       // ➕ INSERT
-      const { error } = await supabase
-        .from("permisos_perfil")
-        .insert({
-          idperfil: Number(p.idperfil),
-          idmodulo: Number(p.idmodulo),
-          agregar: p.agregar,
-          editar: p.editar,
-          eliminar: p.eliminar,
-          consultar: p.consultar,
-          imprimir: p.imprimir,
-          bitacora: p.bitacora,
-        });
+      const { error } = await supabase.from("permisos_perfil").insert({
+        idperfil: p.idperfil,
+        idmodulo: p.idmodulo,
+        agregar: p.agregar,
+        editar: p.editar,
+        eliminar: p.eliminar,
+        consultar: p.consultar,
+        imprimir: p.imprimir,
+        bitacora: p.bitacora,
+      });
 
       if (error) console.error("Error INSERT:", error);
     }
   }
 
-  //RECARGAR PERMISOS (CLAVE)
+  // 🔄 RECARGAR
   await cargarPermisosPerfil(perfilSeleccionado.value);
-await init();
+  await init();
+
   mostrarNotificacion("Permisos guardados correctamente");
 };
 

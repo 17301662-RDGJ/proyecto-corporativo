@@ -11,7 +11,7 @@ const usuario = ref(null);
 
 const { cargarPermisos } = usePermisos();
 
-/* 🔥 SALUDO DINÁMICO */
+/* SALUDO DINÁMICO */
 const saludo = computed(() => {
   const hora = new Date().getHours();
   if (hora < 12) return "Buenos días";
@@ -19,7 +19,7 @@ const saludo = computed(() => {
   return "Buenas noches";
 });
 
-/* 🔥 ROL */
+/* ROL */
 const rol = computed(() => {
   if (!usuario.value) return "";
   return usuario.value.bitadministrador ? "Administrador" : "Usuario";

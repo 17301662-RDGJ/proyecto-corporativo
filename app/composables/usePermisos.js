@@ -8,7 +8,7 @@ export const usePermisos = () => {
   const supabase = useSupabaseClient();
 
   /* ================================
-     🔥 DETECTAR ADMIN (FIX REAL)
+      DETECTAR ADMIN (FIX REAL)
      ================================ */
   const esAdmin = computed(() => {
     return (
@@ -21,7 +21,7 @@ export const usePermisos = () => {
   });
 
   /* ================================
-     🚀 VALIDAR RUTA
+      VALIDAR RUTA
      ================================ */
   const validarRuta = async (ruta) => {
     if (ruta === "/dashboard") return true;
@@ -94,6 +94,7 @@ export const usePermisos = () => {
     if (process.client) {
       localStorage.setItem("permisos", JSON.stringify(permisos.value));
     }
+    console.log("Permisos cargados:", permisos.value);
   };
 
   /* ================================
@@ -112,11 +113,19 @@ export const usePermisos = () => {
   /* ================================
      🔐 VALIDACIONES
      ================================ */
-  const tienePermiso = (moduloId, tipo) => {
+  /* const tienePermiso = (moduloId, tipo) => {
     if (esAdmin.value) return true;
 
     return permisos.value.some((p) => {
       if (Number(p.idmodulo) !== Number(moduloId)) return false;
+      return p[tipo] === true || p[tipo] === 1;
+    });
+  };*/
+  const tienePermiso = (moduloId, tipo) => {
+    if (esAdmin.value) return true;
+
+    return permisos.value.some((p) => {
+      if (p.idmodulo?.toString() !== moduloId?.toString()) return false;
       return p[tipo] === true || p[tipo] === 1;
     });
   };

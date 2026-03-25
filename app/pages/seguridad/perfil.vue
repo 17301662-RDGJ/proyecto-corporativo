@@ -210,7 +210,7 @@ const eliminar = async (id) => {
 /* INIT */
 onMounted(async () => {
   await init();
-  await cargarPerfiles(); // 🔥 YA SIEMPRE SE EJECUTA
+  await cargarPerfiles(); // YA SIEMPRE SE EJECUTA
 });
 </script>
 

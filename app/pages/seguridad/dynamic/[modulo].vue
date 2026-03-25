@@ -11,7 +11,7 @@ definePageMeta({
 });
 
 /* ================================
-   🔥 ROUTE
+    ROUTE
 ================================ */
 const route = useRoute();
 const nombreModulo = ref(route.params.modulo || "");
@@ -25,7 +25,7 @@ const {
   puedeAgregar,
   puedeEditar,
   puedeEliminar,
-  obtenerModuloIdPorRuta,
+  modulos, // ✅ usamos modulos
 } = usePermisos();
 
 const moduloId = ref(null);
@@ -35,7 +35,7 @@ watch(
   () => route.params.modulo,
   async (nuevo) => {
     nombreModulo.value = nuevo || "";
-    await cargarModuloId();
+    cargarModuloId();
     cargarDatos();
   },
 );
@@ -94,14 +94,43 @@ const cambiarPagina = (pagina) => {
 };
 
 /* ================================
-   🔥 CARGAR MODULO ID
+    CARGAR MODULO ID (FIX)
 ================================ */
-const cargarModuloId = async () => {
-  moduloId.value = await obtenerModuloIdPorRuta(route.path);
-};
+/*const cargarModuloId = () => {
+  const rutaActual = route.path;
 
+  const modulo = modulos.value.find((m) => rutaActual.startsWith(m.ruta));
+
+  if (!modulo) {
+    console.warn("⚠️ Módulo no encontrado para ruta:", rutaActual);
+    moduloId.value = null;
+    return;
+  }
+
+  moduloId.value = modulo.id;
+};*/
+const cargarModuloId = () => {
+  const rutaActual = route.path;
+
+  const modulo = modulos.value.find((m) => m.ruta && rutaActual === m.ruta);
+
+  if (!modulo) {
+    console.warn("⚠️ Módulo no encontrado por ruta:", rutaActual);
+    moduloId.value = null;
+    return;
+  }
+
+  moduloId.value = modulo.id;
+
+  console.log("🆔 moduloId correcto:", moduloId.value);
+
+  console.log("🧩 modulos:", modulos.value);
+  console.log("🔐 puedeAgregar:", puedeAgregar(moduloId.value));
+  console.log("🔐 puedeEditar:", puedeEditar(moduloId.value));
+  console.log("🔐 puedeEliminar:", puedeEliminar(moduloId.value));
+};
 /* ================================
-   🔥 CARGAR DATOS
+    CARGAR DATOS
 ================================ */
 const cargarDatos = () => {
   const data = localStorage.getItem(getStorageKey());
@@ -109,7 +138,7 @@ const cargarDatos = () => {
 };
 
 /* ================================
-   🔥 INIT
+    INIT
 ================================ */
 onMounted(async () => {
   await init();
@@ -121,7 +150,7 @@ onMounted(async () => {
     return;
   }
 
-  await cargarModuloId();
+  cargarModuloId();
   cargarDatos();
 });
 
@@ -223,7 +252,7 @@ const limpiarFormulario = () => {
 
 <template>
   <div class="container">
-    <!-- 🔥 BREADCRUMBS -->
+    <!-- BREADCRUMBS -->
     <Breadcrumbs :pagina="nombreModulo" />
 
     <h2>Módulo: {{ nombreModulo }}</h2>
