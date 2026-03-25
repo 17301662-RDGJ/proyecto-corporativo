@@ -1,5 +1,5 @@
 <script setup>
-const props = defineProps({
+/*const props = defineProps({
   error: Object,
 });
 
@@ -33,7 +33,7 @@ setTimeout(() => {
 </template>
 
 <style scoped>
-/* FONDO */
+/* FONDO
 .error-container {
   height: 100vh;
   display: flex;
@@ -42,7 +42,7 @@ setTimeout(() => {
   background: linear-gradient(135deg, #eef2ff, #f4f6fb);
 }
 
-/* TARJETA */
+/* TARJETA
 .card {
   background: white;
   padding: 40px;
@@ -54,14 +54,14 @@ setTimeout(() => {
   animation: fadeIn 0.6s ease;
 }
 
-/* IMAGEN */
+/* IMAGEN
 .error-img {
   width: 120px;
   margin-bottom: 20px;
   animation: float 2s ease-in-out infinite;
 }
 
-/* CÓDIGO */
+/* CÓDIGO
 .code {
   font-size: 42px;
   font-weight: bold;
@@ -69,20 +69,20 @@ setTimeout(() => {
   margin: 0;
 }
 
-/* MENSAJE */
+/* MENSAJE
 .message {
   margin: 15px 0;
   color: #555;
   font-size: 16px;
 }
 
-/* REDIRECCIÓN */
+/* REDIRECCIÓN
 .redirect {
   font-size: 13px;
   color: #888;
 }
 
-/* BOTÓN */
+/* BOTÓN
 button {
   margin-top: 15px;
   background: #1976d2;
@@ -99,7 +99,7 @@ button:hover {
   background: #125ea7;
 }
 
-/* ANIMACIONES */
+/* ANIMACIONES
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -121,3 +121,4 @@ button:hover {
   }
 }
 </style>
+*/
