@@ -77,6 +77,133 @@ const exportarExcel = () => {
   mostrarNotificacion("Excel descargado correctamente");
 };
 
+/*Imprimir*/
+const imprimir = () => {
+  if (!perfilesFiltrados.value.length) {
+    mostrarNotificacion("No hay datos para imprimir", "error");
+    return;
+  }
+
+  const fecha = new Date().toLocaleString();
+
+  // 🔥 Tabla limpia SIN botones
+  const filas = perfilesFiltrados.value
+    .map((p) => {
+      const admin = p.bitadministrador ? "Sí" : "No";
+
+      return `
+        <tr>
+          <td>${p.strnombreperfil}</td>
+          <td>${admin}</td>
+        </tr>
+      `;
+    })
+    .join("");
+
+  const tabla = `
+    <table>
+      <thead>
+        <tr>
+          <th>Nombre Perfil</th>
+          <th>Administrador</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${filas}
+      </tbody>
+    </table>
+  `;
+
+  const ventana = window.open("", "_blank");
+
+  ventana.document.write(`
+    <html>
+      <head>
+        <title>Reporte de Perfiles</title>
+        <style>
+          body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+          }
+
+          .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+          }
+
+          .logo {
+            height: 50px;
+          }
+
+          .titulo {
+            text-align: center;
+            flex: 1;
+            font-size: 22px;
+            font-weight: bold;
+          }
+
+          .fecha {
+            font-size: 12px;
+            color: #555;
+          }
+
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+          }
+
+          th {
+            background: #1e3a5f;
+            color: white;
+            padding: 10px;
+          }
+
+          td {
+            padding: 10px;
+            border: 1px solid #ccc;
+            text-align: center;
+          }
+        </style>
+      </head>
+
+      <body>
+        <div class="header">
+          <img 
+            id="logo"
+            src="https://nuxt.com/assets/design-kit/logo-green-black.svg" 
+            class="logo"
+          />
+
+          <div class="titulo">Reporte de Perfiles</div>
+
+          <div class="fecha">
+            ${fecha}
+          </div>
+        </div>
+
+        ${tabla}
+      </body>
+    </html>
+  `);
+
+  ventana.document.close();
+
+  //  Esperar logo antes de imprimir
+  const logo = ventana.document.getElementById("logo");
+
+  logo.onload = () => {
+    ventana.focus();
+    ventana.print();
+  };
+
+  setTimeout(() => {
+    ventana.focus();
+    ventana.print();
+  }, 800);
+};
 /* FILTRO */
 const perfilesFiltrados = computed(() => {
   if (!filtroPerfil.value) return perfiles.value;
@@ -234,7 +361,9 @@ onMounted(async () => {
       <!-- DERECHA -->
       <div class="acciones-derecha">
         <button class="btn-icon nuevo" @click="nuevo" title="Nuevo">➕</button>
-
+        <button class="btn-icon imprimir" @click="imprimir" title="Imprimir">
+          🖨️
+        </button>
         <button class="btn-icon excel" @click="exportarExcel" title="Exportar">
           📊
         </button>
@@ -544,5 +673,8 @@ input[type="checkbox"] {
 
 .excel {
   background: #2e7d32;
+}
+.imprimir {
+  background: #1976d2;
 }
 </style>

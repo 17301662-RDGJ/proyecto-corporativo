@@ -69,7 +69,7 @@ const usuario = ref({
 const { init, puedeConsultar, puedeAgregar, puedeEditar, puedeEliminar } =
   usePermisos();
 
-/* 🔥 MODULO POR RUTA (CORREGIDO) */
+/* MODULO POR RUTA (CORREGIDO) */
 const moduloActual = computed(() => {
   return modulos.value.find(
     (m) => m.ruta && m.ruta.trim().replace(/\/$/, "") === route.path,
@@ -83,6 +83,9 @@ const exportarExcel = () => {
     return;
   }
 
+  const fecha = new Date().toLocaleDateString();
+
+  // Datos limpios (como en imprimir)
   const data = usuariosFiltrados.value.map((u) => ({
     Usuario: u.strnombreusuario,
     Perfil:
@@ -92,8 +95,27 @@ const exportarExcel = () => {
     Celular: u.strnumerocelular,
   }));
 
-  const worksheet = XLSX.utils.json_to_sheet(data);
+  // Crear hoja
+  const worksheet = XLSX.utils.json_to_sheet(data, { origin: "A4" });
 
+  // ENCABEZADO TIPO REPORTE
+  XLSX.utils.sheet_add_aoa(
+    worksheet,
+    [
+      ["Reporte de Usuarios"],
+      [`Fecha: ${fecha}`],
+      [], // espacio
+    ],
+    { origin: "A1" },
+  );
+
+  // Combinar celdas para el título
+  worksheet["!merges"] = [
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 4 } }, // título
+    { s: { r: 1, c: 0 }, e: { r: 1, c: 4 } }, // fecha
+  ];
+
+  // Ancho de columnas
   worksheet["!cols"] = [
     { wch: 25 },
     { wch: 20 },
@@ -114,26 +136,161 @@ const exportarExcel = () => {
     type: "application/octet-stream",
   });
 
-  const fecha = new Date().toISOString().split("T")[0];
-  saveAs(fileData, `usuarios_${fecha}.xlsx`);
+  saveAs(fileData, `usuarios_${new Date().toISOString().split("T")[0]}.xlsx`);
 
-  mostrarNotificacion("Excel descargado correctamente");
+  mostrarNotificacion("Excel generado correctamente");
 };
-
-/* IMAGEN */
-const seleccionarImagen = (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
-
-  if (!file.type.startsWith("image/")) {
-    mostrarNotificacion("Solo se permiten imágenes", "error");
+/*IMPRIMIR*/
+const imprimir = () => {
+  if (!usuariosFiltrados.value.length) {
+    mostrarNotificacion("No hay datos para imprimir", "error");
     return;
   }
 
-  imagen.value = file;
-  preview.value = URL.createObjectURL(file);
-};
+  const fecha = new Date().toLocaleString();
 
+  // Construimos tabla limpia (SIN botones)
+  const filas = usuariosFiltrados.value
+    .map((u) => {
+      const perfil =
+        perfiles.value.find((p) => p.id === u.idperfil)?.strnombreperfil || "";
+
+      const estado = u.idestadousuario === 1 ? "Activo" : "Inactivo";
+
+      return `
+        <tr>
+          <td>${u.strnombreusuario}</td>
+          <td>${perfil}</td>
+          <td>${estado}</td>
+          <td>${u.strcorreo}</td>
+          <td>${u.strnumerocelular}</td>
+        </tr>
+      `;
+    })
+    .join("");
+
+  const tabla = `
+    <table>
+      <thead>
+        <tr>
+          <th>Usuario</th>
+          <th>Perfil</th>
+          <th>Estado</th>
+          <th>Correo</th>
+          <th>Celular</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${filas}
+      </tbody>
+    </table>
+  `;
+
+  const ventana = window.open("", "_blank");
+
+  ventana.document.write(`
+  <html>
+    <head>
+      <title>Reporte de Usuarios</title>
+      <style>
+        body {
+          font-family: Arial, sans-serif;
+          padding: 20px;
+        }
+
+        .header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 20px;
+        }
+
+        .logo {
+          height: 50px;
+        }
+
+        .titulo {
+          text-align: center;
+          flex: 1;
+          font-size: 22px;
+          font-weight: bold;
+        }
+
+        .fecha {
+          font-size: 12px;
+          color: #555;
+        }
+
+        table {
+          width: 100%;
+          border-collapse: collapse;
+          margin-top: 10px;
+        }
+
+        th {
+          background: #1e3a5f;
+          color: white;
+          padding: 10px;
+        }
+
+        td {
+          padding: 10px;
+          border: 1px solid #ccc;
+          text-align: center;
+        }
+      </style>
+    </head>
+
+    <body>
+      <div class="header">
+        <img
+          id="logo"
+          src="https://nuxt.com/assets/design-kit/logo-green-black.svg"
+          class="logo"
+        />
+
+        <div class="titulo">Reporte de Usuarios</div>
+
+        <div class="fecha">
+          ${fecha}
+        </div>
+      </div>
+
+      ${tabla}
+    </body>
+  </html>
+`);
+
+  ventana.document.close();
+
+  // ESPERAR A QUE EL LOGO CARGUE
+  const logo = ventana.document.getElementById("logo");
+
+  logo.onload = () => {
+    ventana.focus();
+    ventana.print();
+  };
+
+  // fallback por si tarda o falla
+  setTimeout(() => {
+    ventana.focus();
+    ventana.print();
+  }, 800);
+
+  /* IMAGEN */
+  const seleccionarImagen = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      mostrarNotificacion("Solo se permiten imágenes", "error");
+      return;
+    }
+
+    imagen.value = file;
+    preview.value = URL.createObjectURL(file);
+  };
+};
 /* GUARDAR */
 const guardar = async () => {
   let urlImagen = usuario.value.strfoto;
@@ -316,6 +473,14 @@ onMounted(async () => {
           title="Exportar Excel"
         >
           📊
+        </button>
+        <button
+          class="icon-btn imprimir"
+          @click="imprimir"
+          v-if="moduloActual && puedeConsultar(moduloActual.id)"
+          title="Imprimir"
+        >
+          🖨️
         </button>
       </div>
     </div>
@@ -612,6 +777,10 @@ td button:last-child {
 }
 .icon-btn.excel {
   background: #2e7d32;
+  color: white;
+}
+.icon-btn.imprimir {
+  background: #1976d2;
   color: white;
 }
 </style>

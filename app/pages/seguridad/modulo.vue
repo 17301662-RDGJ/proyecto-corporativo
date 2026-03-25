@@ -80,6 +80,130 @@ const exportarExcel = () => {
   mostrarNotificacion("Excel descargado correctamente");
 };
 
+/* 🖨️ IMPRIMIR */
+const imprimir = () => {
+  if (!modulosFiltrados.value.length) {
+    mostrarNotificacion("No hay datos para imprimir", "error");
+    return;
+  }
+
+  const fecha = new Date().toLocaleString();
+
+  // Filas limpias (SIN botones)
+  const filas = modulosFiltrados.value
+    .map((m) => {
+      return `
+        <tr>
+          <td>${m.strnombremodulo}</td>
+        </tr>
+      `;
+    })
+    .join("");
+
+  const tabla = `
+    <table>
+      <thead>
+        <tr>
+          <th>Nombre del Módulo</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${filas}
+      </tbody>
+    </table>
+  `;
+
+  const ventana = window.open("", "_blank");
+
+  ventana.document.write(`
+    <html>
+      <head>
+        <title>Reporte de Módulos</title>
+        <style>
+          body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+          }
+
+          .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+          }
+
+          .logo {
+            height: 50px;
+          }
+
+          .titulo {
+            text-align: center;
+            flex: 1;
+            font-size: 22px;
+            font-weight: bold;
+          }
+
+          .fecha {
+            font-size: 12px;
+            color: #555;
+          }
+
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+          }
+
+          th {
+            background: #1e3a5f;
+            color: white;
+            padding: 10px;
+          }
+
+          td {
+            padding: 10px;
+            border: 1px solid #ccc;
+            text-align: center;
+          }
+        </style>
+      </head>
+
+      <body>
+        <div class="header">
+          <img 
+            id="logo"
+            src="https://nuxt.com/assets/design-kit/logo-green-black.svg" 
+            class="logo"
+          />
+
+          <div class="titulo">Reporte de Módulos</div>
+
+          <div class="fecha">
+            ${fecha}
+          </div>
+        </div>
+
+        ${tabla}
+      </body>
+    </html>
+  `);
+
+  ventana.document.close();
+
+  // Esperar a que cargue el logo
+  const logo = ventana.document.getElementById("logo");
+
+  logo.onload = () => {
+    ventana.focus();
+    ventana.print();
+  };
+
+  setTimeout(() => {
+    ventana.focus();
+    ventana.print();
+  }, 800);
+};
+
 /* GENERAR RUTA */
 const generarRuta = (nombre) => {
   const limpio = nombre
@@ -91,7 +215,7 @@ const generarRuta = (nombre) => {
   return `/seguridad/dynamic/${limpio}`;
 };
 
-/* FILTRO */
+/* FILTRO = CONSULTAR */
 const modulosFiltrados = computed(() => {
   if (!filtroModulo.value) return modulos.value;
 
@@ -235,19 +359,19 @@ onMounted(async () => {
     <Breadcrumbs pagina="Modulo" />
     <h2>Módulo</h2>
 
-    <!-- 🔥 FILTRO + BOTONES -->
+    <!-- FILTRO + BOTONES -->
     <div class="filtros">
       <div class="filtros-izq">
         <input v-model="filtroModulo" placeholder="Buscar módulo..." />
       </div>
 
       <div class="filtros-der">
-        <button class="icon-btn nuevo" @click="nuevo">➕</button>
-        <button class="icon-btn excel" @click="exportarExcel">📊</button>
+        <button class="btn nuevo" @click="nuevo">➕ Nuevo</button>
+        <button class="btn imprimir" @click="imprimir">🖨️ Imprimir</button>
+        <button class="btn excel" @click="exportarExcel">📊 Excel</button>
       </div>
     </div>
 
-    <!-- TABLA -->
     <table>
       <thead>
         <tr>
@@ -260,8 +384,12 @@ onMounted(async () => {
       <tbody>
         <tr v-for="m in modulosPaginados" :key="m.id">
           <td>{{ m.strnombremodulo }}</td>
-          <td><button @click="editar(m)">✏️</button></td>
-          <td><button @click="eliminar(m.id)">🗑️</button></td>
+          <td>
+            <button class="btn editar" @click="editar(m)">✏️</button>
+          </td>
+          <td>
+            <button class="btn eliminar" @click="eliminar(m.id)">🗑️</button>
+          </td>
         </tr>
       </tbody>
     </table>
@@ -300,13 +428,8 @@ h2 {
   color: #1e3a5f;
 }
 
-/* 🔥 FILTROS */
+/* FILTRO */
 .filtros {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 10px;
   background: white;
   padding: 15px;
   border-radius: 8px;
@@ -314,46 +437,12 @@ h2 {
   box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
 }
 
-.filtros-izq {
-  display: flex;
-  gap: 10px;
-}
-
 .filtros input {
+  width: 300px;
   padding: 8px 10px;
   border-radius: 6px;
   border: 1px solid #ccc;
 }
-
-.filtros-der {
-  display: flex;
-  gap: 10px;
-}
-
-/* BOTONES ICONO */
-.icon-btn {
-  width: 42px;
-  height: 42px;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 18px;
-  border: none;
-  cursor: pointer;
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
-}
-
-.icon-btn.nuevo {
-  background: #4caf50;
-  color: white;
-}
-
-.icon-btn.excel {
-  background: #2e7d32;
-  color: white;
-}
-
 /* TABLA */
 table {
   width: 100%;
@@ -373,11 +462,40 @@ td {
   border-bottom: 1px solid #eee;
 }
 
-td button:first-child {
+/* BOTONES */
+.acciones-tabla {
+  margin-top: 15px;
+  display: flex;
+  gap: 10px;
+}
+
+.btn {
+  padding: 10px 15px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.btn.nuevo {
+  background: #4caf50;
+  color: white;
+}
+
+.btn.imprimir {
+  background: #1976d2;
+  color: white;
+}
+
+.btn.excel {
+  background: #2e7d32;
+  color: white;
+}
+
+.btn.editar {
   background: #ffc107;
 }
 
-td button:last-child {
+.btn.eliminar {
   background: #e53935;
   color: white;
 }
@@ -407,6 +525,7 @@ td button:last-child {
   justify-content: space-between;
 }
 
+/* NOTIFICACIONES */
 .notificacion {
   position: fixed;
   top: 20px;
@@ -422,5 +541,33 @@ td button:last-child {
 
 .error {
   background: #e53935;
+}
+.filtros {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  background: white;
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
+}
+
+.filtros-izq {
+  display: flex;
+  gap: 10px;
+}
+
+.filtros input {
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+}
+
+.filtros-der {
+  display: flex;
+  gap: 10px;
 }
 </style>

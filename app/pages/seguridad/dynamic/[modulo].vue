@@ -10,27 +10,23 @@ definePageMeta({
   middleware: ["auth", "permiso"],
 });
 
-/* ================================
-    ROUTE
-================================ */
 const route = useRoute();
 const nombreModulo = ref(route.params.modulo || "");
 
-/* ================================
-   🔐 PERMISOS
-================================ */
 const {
   init,
   validarRuta,
   puedeAgregar,
   puedeEditar,
   puedeEliminar,
-  modulos, // ✅ usamos modulos
+  puedeConsultar,
+  puedeImprimir,
+  puedeBitacora,
+  modulos,
 } = usePermisos();
 
 const moduloId = ref(null);
 
-/* 🔄 CAMBIO DE RUTA */
 watch(
   () => route.params.modulo,
   async (nuevo) => {
@@ -40,14 +36,8 @@ watch(
   },
 );
 
-/* ================================
-   🔑 STORAGE DINÁMICO
-================================ */
 const getStorageKey = () => `modulo_${nombreModulo.value}`;
 
-/* ================================
-   📦 DATA
-================================ */
 const registros = ref([]);
 const filtro = ref("");
 
@@ -61,20 +51,16 @@ const modal = ref(false);
 const editando = ref(false);
 const indexEditar = ref(null);
 
-/* ================================
-   🔎 FILTRO
-================================ */
+/* 🔎 FILTRO */
 const registrosFiltrados = computed(() => {
   if (!filtro.value) return registros.value;
 
   return registros.value.filter((r) =>
-    r.nombre.toLowerCase().includes(filtro.value.toLowerCase()),
+    (r.nombre || "").toLowerCase().includes(filtro.value.toLowerCase()),
   );
 });
 
-/* ================================
-   📄 PAGINADO
-================================ */
+/* 📄 PAGINADO */
 const paginaActual = ref(1);
 const porPagina = 5;
 
@@ -93,22 +79,40 @@ const cambiarPagina = (pagina) => {
   }
 };
 
-/* ================================
-    CARGAR MODULO ID (FIX)
-================================ */
-/*const cargarModuloId = () => {
-  const rutaActual = route.path;
+const imprimir = () => {
+  if (!puedeImprimir(moduloId.value)) {
+    Swal.fire("Sin permiso", "No puedes imprimir", "warning");
+    return;
+  }
+  window.print();
+};
 
-  const modulo = modulos.value.find((m) => rutaActual.startsWith(m.ruta));
-
-  if (!modulo) {
-    console.warn("⚠️ Módulo no encontrado para ruta:", rutaActual);
-    moduloId.value = null;
+const exportarExcel = () => {
+  if (!puedeBitacora(moduloId.value)) {
+    Swal.fire("Sin permiso", "No puedes exportar", "warning");
     return;
   }
 
-  moduloId.value = modulo.id;
-};*/
+  if (registros.value.length === 0) {
+    Swal.fire("Sin datos", "No hay registros para exportar", "info");
+    return;
+  }
+
+  let contenido = "Nombre,Descripción,Estado\n";
+
+  registros.value.forEach((r) => {
+    contenido += `${r.nombre || ""},${r.descripcion || ""},${r.estado || ""}\n`;
+  });
+
+  const blob = new Blob([contenido], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `modulo_${nombreModulo.value}.csv`;
+  link.click();
+};
+
 const cargarModuloId = () => {
   const rutaActual = route.path;
 
@@ -121,25 +125,13 @@ const cargarModuloId = () => {
   }
 
   moduloId.value = modulo.id;
-
-  console.log("🆔 moduloId correcto:", moduloId.value);
-
-  console.log("🧩 modulos:", modulos.value);
-  console.log("🔐 puedeAgregar:", puedeAgregar(moduloId.value));
-  console.log("🔐 puedeEditar:", puedeEditar(moduloId.value));
-  console.log("🔐 puedeEliminar:", puedeEliminar(moduloId.value));
 };
-/* ================================
-    CARGAR DATOS
-================================ */
+
 const cargarDatos = () => {
   const data = localStorage.getItem(getStorageKey());
   registros.value = data ? JSON.parse(data) : [];
 };
 
-/* ================================
-    INIT
-================================ */
 onMounted(async () => {
   await init();
 
@@ -154,9 +146,6 @@ onMounted(async () => {
   cargarDatos();
 });
 
-/* ================================
-   ✅ VALIDACIONES
-================================ */
 const validarFormulario = () => {
   if (!form.value.nombre.trim()) {
     Swal.fire("Error", "El nombre es obligatorio", "error");
@@ -171,9 +160,6 @@ const validarFormulario = () => {
   return true;
 };
 
-/* ================================
-   💾 CRUD (CON PERMISOS)
-================================ */
 const guardar = () => {
   if (!puedeAgregar(moduloId.value)) {
     Swal.fire("Sin permiso", "No puedes agregar", "warning");
@@ -224,12 +210,8 @@ const eliminar = async (index) => {
   localStorage.setItem(getStorageKey(), JSON.stringify(registros.value));
 };
 
-/* ================================
-   🪟 MODAL
-================================ */
 const abrirModal = () => {
   if (!puedeAgregar(moduloId.value)) return;
-
   limpiarFormulario();
   modal.value = true;
 };
@@ -252,20 +234,41 @@ const limpiarFormulario = () => {
 
 <template>
   <div class="container">
-    <!-- BREADCRUMBS -->
     <Breadcrumbs :pagina="nombreModulo" />
-
     <h2>Módulo: {{ nombreModulo }}</h2>
 
-    <!-- 🔎 BUSCADOR -->
-    <div class="busqueda">
-      <input v-model="filtro" placeholder="Buscar..." />
+    <!-- 🔥 BARRA SUPERIOR -->
+    <div class="barra-superior">
+      <input
+        v-if="puedeConsultar(moduloId)"
+        v-model="filtro"
+        placeholder="Buscar..."
+      />
 
-      <button v-if="puedeAgregar(moduloId)" class="nuevo" @click="abrirModal">
-        ➕ Nuevo
-      </button>
+      <p v-else class="sin-permiso">🔒 Sin permiso</p>
+
+      <div class="acciones-derecha">
+        <button v-if="puedeAgregar(moduloId)" class="nuevo" @click="abrirModal">
+          +
+        </button>
+        <button
+          v-if="puedeImprimir(moduloId)"
+          class="imprimir"
+          @click="imprimir"
+        >
+          🖨️
+        </button>
+        <button
+          v-if="puedeBitacora(moduloId)"
+          class="excel"
+          @click="exportarExcel"
+        >
+          📊
+        </button>
+      </div>
     </div>
 
+    <!-- TABLA -->
     <table>
       <thead>
         <tr>
@@ -285,7 +288,6 @@ const limpiarFormulario = () => {
             <button v-if="puedeEditar(moduloId)" @click="editar(r, index)">
               ✏️
             </button>
-
             <button v-if="puedeEliminar(moduloId)" @click="eliminar(index)">
               🗑️
             </button>
@@ -298,7 +300,6 @@ const limpiarFormulario = () => {
       </tbody>
     </table>
 
-    <!-- PAGINACION -->
     <Pagination
       :paginaActual="paginaActual"
       :totalPaginas="totalPaginas"
@@ -339,26 +340,50 @@ h2 {
   color: #1e3a5f;
 }
 
-/* BOTONES */
-button {
-  border: none;
-  padding: 8px 14px;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: 0.2s;
+/* 🔥 BARRA SUPERIOR */
+.barra-superior {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #e9edf5;
+  padding: 15px;
+  border-radius: 10px;
+  margin-bottom: 20px;
 }
 
-button:hover {
-  transform: scale(1.05);
+.barra-superior input {
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  width: 250px;
+}
+
+.acciones-derecha {
+  display: flex;
+  gap: 10px;
+}
+
+.acciones-derecha button {
+  width: 45px;
+  height: 45px;
+  border-radius: 8px;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .nuevo {
   background: #4caf50;
   color: white;
-  padding: 10px 18px;
-  margin-bottom: 15px;
-  font-weight: bold;
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
+}
+.imprimir {
+  background: #2196f3;
+  color: white;
+}
+.excel {
+  background: #2e7d32;
+  color: white;
 }
 
 /* TABLA */
@@ -387,11 +412,9 @@ tr:hover {
   background: #f2f6ff;
 }
 
-/* BOTONES TABLA */
 td button:first-child {
   background: #ffc107;
 }
-
 td button:last-child {
   background: #e53935;
   color: white;
@@ -437,9 +460,13 @@ td button:last-child {
   background: #4caf50;
   color: white;
 }
-
 .acciones button:last-child {
   background: #e53935;
   color: white;
+}
+
+.sin-permiso {
+  color: red;
+  font-weight: bold;
 }
 </style>
