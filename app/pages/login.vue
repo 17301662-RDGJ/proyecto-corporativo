@@ -93,8 +93,10 @@ const login = async () => {
       await cargarPermisos(usuario.idperfil);
     }
 
+    //console.log("Login exitoso, redirigiendo...");
+    //router.push("/dashboard");
     console.log("Login exitoso, redirigiendo...");
-    router.push("/dashboard");
+    await navigateTo("/dashboard");
   } catch (err) {
     console.error("Error en login:", err);
     alert("Error en el servidor");
