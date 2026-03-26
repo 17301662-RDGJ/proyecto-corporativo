@@ -1,223 +1,125 @@
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref } from "vue";
+import { useSupabaseClient } from "#imports";
+import bcrypt from "bcryptjs";
+import { useRouter } from "vue-router";
 
+const supabase = useSupabaseClient();
+const router = useRouter();
+
+// Inputs del formulario
 const strnombreusuario = ref("");
 const strpwd = ref("");
+
+// Captcha
 const captchaToken = ref("");
-const config = useRuntimeConfig();
-const { cargarPermisos } = usePermisos();
 
-console.log("RECAPTCHA KEY:", config.public.recaptchaSiteKey);
+// Mensajes de error
+const errorMsg = ref("");
+const cargando = ref(false);
 
+// Función que se llama cuando captcha es verificado
 const onCaptchaVerified = (token) => {
   captchaToken.value = token;
 };
 
-onMounted(() => {
-  if (window.grecaptcha) {
-    window.grecaptcha.render("recaptcha-container", {
-      sitekey: config.public.recaptchaSiteKey,
-      callback: onCaptchaVerified,
-    });
-  }
-});
-
+// Función de login personalizada usando nombre de usuario
 const login = async () => {
-  if (strnombreusuario.value.trim() === "" || strpwd.value.trim() === "") {
-    alert("Todos los campos son obligatorios");
+  errorMsg.value = "";
+
+  if (!strnombreusuario.value || !strpwd.value) {
+    errorMsg.value = "Por favor completa todos los campos";
     return;
   }
+
   if (!captchaToken.value) {
-    alert("Verifica el captcha");
+    errorMsg.value = "Debes completar el captcha";
     return;
   }
 
-  try {
-    const response = await $fetch("/api/login", {
-      method: "POST",
-      body: {
-        username: strnombreusuario.value,
-        password: strpwd.value,
-      },
-    });
+  cargando.value = true;
 
-    if (response.message) {
-      alert(response.message);
-      return;
-    }
+  // Buscamos el usuario en la tabla personalizada
+  const { data: user, error } = await supabase
+    .from("usuarios")
+    .select("*")
+    .eq("nombreusuario", strnombreusuario.value)
+    .single();
 
-    console.log("Login correcto");
+  cargando.value = false;
 
-    // guardar token
-    localStorage.setItem("token", response.token);
-
-    // guardar usuario
-    const usuario = useState("usuario", () => null);
-    usuario.value = response.usuario;
-
-    localStorage.setItem("usuario", JSON.stringify(response.usuario));
-
-    // cargar permisos del perfil
-    await cargarPermisos(response.usuario.idperfil);
-
-    // redirigir
-    await navigateTo("/dashboard");
-  } catch (error) {
-    console.error("Error:", error);
-    alert("Error en el servidor");
+  if (error || !user) {
+    errorMsg.value = "Usuario no encontrado";
+    return;
   }
+
+  // Comparamos la contraseña usando bcrypt
+  const passwordValida = bcrypt.compareSync(strpwd.value, user.password);
+  if (!passwordValida) {
+    errorMsg.value = "Contraseña incorrecta";
+    return;
+  }
+
+  // Login exitoso
+  // Aquí puedes guardar la sesión, por ejemplo en localStorage
+  localStorage.setItem(
+    "usuario",
+    JSON.stringify({
+      id: user.id,
+      nombreusuario: user.nombreusuario,
+    }),
+  );
+
+  // Redirigir a la página principal
+  router.push("/dashboard");
 };
 </script>
 
 <template>
   <div class="login-container">
-    <div class="login-card">
-      <div class="logo">
-        <h1>Sistema Corporativo</h1>
-        <p>Acceso al sistema</p>
-      </div>
+    <h2>Iniciar sesión</h2>
 
-      <div class="form">
-        <div class="input-group">
-          <span class="icon">👤</span>
-          <input v-model="strnombreusuario" placeholder="Usuario" />
-        </div>
+    <input
+      v-model="strnombreusuario"
+      type="text"
+      placeholder="Nombre de usuario"
+    />
 
-        <div class="input-group">
-          <span class="icon">🔒</span>
-          <input type="password" v-model="strpwd" placeholder="Contraseña" />
-        </div>
+    <input v-model="strpwd" type="password" placeholder="Contraseña" />
 
-        <div id="recaptcha-container"></div>
+    <!-- Aquí va tu componente de captcha -->
+    <ReCaptcha @verified="onCaptchaVerified" />
 
-        <button type="button" @click="login">Ingresar</button>
+    <button :disabled="cargando" @click="login">
+      {{ cargando ? "Validando..." : "Entrar" }}
+    </button>
 
-        <!--p class="recuperar">
-          <NuxtLink to="/recuperar-password">
-            ¿Olvidaste tu contraseña?
-          </NuxtLink>
-        </p-->
-      </div>
-    </div>
+    <p v-if="errorMsg" class="error">{{ errorMsg }}</p>
   </div>
 </template>
 
 <style scoped>
-* {
-  box-sizing: border-box;
-}
-
 .login-container {
+  max-width: 400px;
+  margin: auto;
   display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100vh;
-  background: linear-gradient(135deg, #4f6df5, #6a4cf5);
-  font-family: Arial, Helvetica, sans-serif;
+  flex-direction: column;
+  gap: 1rem;
 }
 
-.login-card {
-  width: 380px;
-  background: white;
-  padding: 40px 35px;
-  border-radius: 12px;
-  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2);
-  animation: fadeIn 0.6s ease;
-}
-
-.logo {
-  text-align: center;
-  margin-bottom: 25px;
-}
-
-.logo h1 {
-  font-size: 24px;
-  margin: 0;
-  color: #333;
-}
-
-.logo p {
-  margin-top: 5px;
-  font-size: 14px;
-  color: #777;
-}
-
-.form {
-  width: 100%;
-}
-
-.input-group {
-  display: flex;
-  align-items: center;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  padding: 10px;
-  margin-bottom: 15px;
-  transition: 0.3s;
-}
-
-.input-group:focus-within {
-  border-color: #4f6df5;
-}
-
-.icon {
-  margin-right: 10px;
-  font-size: 16px;
-}
-
-.input-group input {
-  border: none;
-  outline: none;
-  width: 100%;
-  font-size: 14px;
-}
-
-.captcha {
-  display: flex;
-  justify-content: center;
-  margin: 20px 0;
+input {
+  padding: 0.5rem;
+  font-size: 1rem;
 }
 
 button {
-  width: 100%;
-  padding: 12px;
-  border: none;
-  border-radius: 8px;
-  background: #4f6df5;
-  color: white;
-  font-size: 15px;
+  padding: 0.5rem;
+  font-size: 1rem;
   cursor: pointer;
-  transition: 0.3s;
 }
 
-button:hover {
-  background: #3955d6;
-  transform: translateY(-2px);
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(15px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-.forgot {
-  margin-top: 15px;
-  text-align: center;
-}
-
-.forgot a {
-  font-size: 13px;
-  color: #4f6df5;
-  text-decoration: none;
-  transition: 0.3s;
-}
-
-.forgot a:hover {
-  text-decoration: underline;
+.error {
+  color: red;
+  font-weight: bold;
 }
 </style>
