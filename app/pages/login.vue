@@ -1,8 +1,8 @@
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, nextTick } from "vue";
 import { useSupabaseClient } from "#imports";
 import { usePermisos } from "~/composables/usePermisos";
-import { useState, navigateTo, useRuntimeConfig } from "#imports";
+import { useRouter } from "vue-router";
 
 const strnombreusuario = ref("");
 const strpwd = ref("");
@@ -10,6 +10,7 @@ const captchaToken = ref("");
 
 const config = useRuntimeConfig();
 const { cargarPermisos } = usePermisos();
+const router = useRouter();
 
 console.log("RECAPTCHA KEY:", config.public.recaptchaSiteKey);
 
@@ -42,6 +43,7 @@ const onCaptchaVerified = (token) => {
 // --------------------------
 onMounted(async () => {
   const grecaptcha = await loadRecaptcha();
+
   grecaptcha.render("recaptcha-container", {
     sitekey: config.public.recaptchaSiteKey,
     callback: onCaptchaVerified,
@@ -65,14 +67,19 @@ const login = async () => {
   try {
     const supabase = useSupabaseClient();
 
-    // Buscar usuario por nombre de usuario
+    // Buscar usuario por nombre
     const { data: usuario, error } = await supabase
       .from("usuario")
       .select("*")
       .eq("strnombreusuario", strnombreusuario.value)
       .maybeSingle();
 
-    if (error || !usuario || usuario.strpwd !== strpwd.value) {
+    if (error || !usuario) {
+      alert("Usuario o contraseña incorrectos");
+      return;
+    }
+
+    if (usuario.strpwd !== strpwd.value) {
       alert("Usuario o contraseña incorrectos");
       return;
     }
@@ -88,7 +95,10 @@ const login = async () => {
     }
 
     console.log("Login exitoso, redirigiendo...");
-    await navigateTo("/dashboard");
+
+    // Redirigir después de actualizar state y permisos
+    await nextTick();
+    router.push("/dashboard");
   } catch (err) {
     console.error("Error en login:", err);
     alert("Error en el servidor");
