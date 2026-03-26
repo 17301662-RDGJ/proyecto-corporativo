@@ -15,7 +15,7 @@ const router = useRouter();
 console.log("RECAPTCHA KEY:", config.public.recaptchaSiteKey);
 
 // --------------------------
-// Función para cargar script de Google reCAPTCHA
+// Cargar script de Google reCAPTCHA
 // --------------------------
 const loadRecaptcha = () => {
   return new Promise((resolve) => {
@@ -31,10 +31,11 @@ const loadRecaptcha = () => {
 };
 
 // --------------------------
-// Callback cuando captcha se valida
+// Callback del captcha
 // --------------------------
 const onCaptchaVerified = (token) => {
   captchaToken.value = token;
+  console.log("Captcha verificado:", token);
 };
 
 // --------------------------
@@ -43,6 +44,7 @@ const onCaptchaVerified = (token) => {
 onMounted(async () => {
   const grecaptcha = await loadRecaptcha();
 
+  // Render del widget
   grecaptcha.render("recaptcha-container", {
     sitekey: config.public.recaptchaSiteKey,
     callback: onCaptchaVerified,
@@ -66,7 +68,7 @@ const login = async () => {
   try {
     const supabase = useSupabaseClient();
 
-    // Aquí buscamos al usuario por nombre (sin email)
+    // Buscar usuario
     const { data: usuarios, error } = await supabase
       .from("usuario")
       .select("*")
