@@ -1,6 +1,6 @@
 [build]
-  command = "cd proyectocorporativo && npm install && npm run build"
-  publish = "proyectocorporativo/.output/public"
+  command = "npm install && npm run build"
+  publish = ".output/public"
 
 [functions]
-  directory = "proyectocorporativo/.output/server"
+  directory = ".output/server"
