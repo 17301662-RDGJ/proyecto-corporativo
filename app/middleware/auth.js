@@ -1,13 +1,9 @@
-export default defineNuxtRouteMiddleware(() => {
+export default defineNuxtRouteMiddleware((to) => {
   if (process.client) {
-    const token = localStorage.getItem("token");
+    const user = useSupabaseUser();
 
-    if (!token) {
-      // return navigateTo("/login");
-      throw createError({
-        statusCode: 401,
-        statusMessage: "Sesión no válida",
-      });
+    if (!user.value && to.path !== "/login") {
+      return navigateTo("/login");
     }
   }
 });
