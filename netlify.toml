@@ -1,6 +1,6 @@
-[build]
+  [build]
   command = "npm install && npm run generate"
-  publish = ".output/public"
-  
+  publish = "dist"
+
 [functions]
   directory = ".output/server"
