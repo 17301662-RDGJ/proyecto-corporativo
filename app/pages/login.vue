@@ -1,29 +1,19 @@
 <script setup>
 import { ref } from "vue";
-import { useSupabaseClient } from "#imports";
-import bcrypt from "bcryptjs";
 import { useRouter } from "vue-router";
 
-const supabase = useSupabaseClient();
-const router = useRouter();
-
-// Inputs del formulario
 const strnombreusuario = ref("");
 const strpwd = ref("");
-
-// Captcha
 const captchaToken = ref("");
-
-// Mensajes de error
 const errorMsg = ref("");
 const cargando = ref(false);
 
-// Función que se llama cuando captcha es verificado
+const router = useRouter();
+
 const onCaptchaVerified = (token) => {
   captchaToken.value = token;
 };
 
-// Función de login personalizada usando nombre de usuario
 const login = async () => {
   errorMsg.value = "";
 
@@ -39,39 +29,31 @@ const login = async () => {
 
   cargando.value = true;
 
-  // Buscamos el usuario en la tabla personalizada
-  const { data: user, error } = await supabase
-    .from("usuarios")
-    .select("*")
-    .eq("nombreusuario", strnombreusuario.value)
-    .single();
+  try {
+    const res = await $fetch("/api/login", {
+      method: "POST",
+      body: {
+        nombreusuario: strnombreusuario.value,
+        password: strpwd.value,
+      },
+    });
 
-  cargando.value = false;
+    cargando.value = false;
 
-  if (error || !user) {
-    errorMsg.value = "Usuario no encontrado";
-    return;
+    if (!res.success) {
+      errorMsg.value = res.message;
+      return;
+    }
+
+    // Guardar sesión
+    localStorage.setItem("usuario", JSON.stringify(res.user));
+
+    // Redirigir
+    router.push("/dashboard");
+  } catch (err) {
+    cargando.value = false;
+    errorMsg.value = "Error en la conexión al servidor";
   }
-
-  // Comparamos la contraseña usando bcrypt
-  const passwordValida = bcrypt.compareSync(strpwd.value, user.password);
-  if (!passwordValida) {
-    errorMsg.value = "Contraseña incorrecta";
-    return;
-  }
-
-  // Login exitoso
-  // Aquí puedes guardar la sesión, por ejemplo en localStorage
-  localStorage.setItem(
-    "usuario",
-    JSON.stringify({
-      id: user.id,
-      nombreusuario: user.nombreusuario,
-    }),
-  );
-
-  // Redirigir a la página principal
-  router.push("/dashboard");
 };
 </script>
 
@@ -84,10 +66,9 @@ const login = async () => {
       type="text"
       placeholder="Nombre de usuario"
     />
-
     <input v-model="strpwd" type="password" placeholder="Contraseña" />
 
-    <!-- Aquí va tu componente de captcha -->
+    <!-- Tu captcha -->
     <ReCaptcha @verified="onCaptchaVerified" />
 
     <button :disabled="cargando" @click="login">
@@ -106,18 +87,14 @@ const login = async () => {
   flex-direction: column;
   gap: 1rem;
 }
-
-input {
-  padding: 0.5rem;
-  font-size: 1rem;
-}
-
+input,
 button {
   padding: 0.5rem;
   font-size: 1rem;
+}
+button {
   cursor: pointer;
 }
-
 .error {
   color: red;
   font-weight: bold;
