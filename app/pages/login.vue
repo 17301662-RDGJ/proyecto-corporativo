@@ -98,7 +98,8 @@ const login = async () => {
 
     // Redirigir después de actualizar state y permisos
     await nextTick();
-    router.push("/dashboard");
+    router.push({ path: "/dashboard" });
+    //router.push("/dashboard");
   } catch (err) {
     console.error("Error en login:", err);
     alert("Error en el servidor");
