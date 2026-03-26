@@ -12,7 +12,8 @@ definePageMeta({
 const supabase = useSupabaseClient();
 
 /* 🔐 PERMISOS GLOBAL */
-const { init, puedeConsultar, puedeEditar } = usePermisos();
+const { init, puedeConsultar, puedeEditar, usuario, cargarPermisos } =
+  usePermisos();
 
 /* DATA */
 const perfiles = ref([]);
@@ -144,16 +145,14 @@ const guardar = async () => {
     return mostrarNotificacion("Seleccione un perfil", "error");
   }
 
-  for (let p of permisos.value) {
+  // 🔥 SOLO PERMISOS VALIDOS
+  const permisosValidos = permisos.value.filter(
+    (p) => p.idperfil && p.idmodulo,
+  );
+
+  for (let p of permisosValidos) {
     console.log("Guardando:", p);
 
-    // 🔥 VALIDACIÓN (evita NaN o undefined)
-    if (!p.idmodulo) {
-      console.error("ID MODULO INVALIDO", p);
-      continue;
-    }
-
-    // 🔍 Buscar si existe
     const { data: existe, error: errorSelect } = await supabase
       .from("permisos_perfil")
       .select("id")
@@ -198,9 +197,13 @@ const guardar = async () => {
     }
   }
 
-  // 🔄 RECARGAR
+  // 🔄 RECARGAR LOCAL
   await cargarPermisosPerfil(perfilSeleccionado.value);
-  await init();
+
+  // 🔥 SINCRONIZAR CON SISTEMA GLOBAL
+  if (usuario.value?.idperfil === perfilSeleccionado.value) {
+    await cargarPermisos(usuario.value.idperfil);
+  }
 
   mostrarNotificacion("Permisos guardados correctamente");
 };

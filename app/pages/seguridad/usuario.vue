@@ -76,6 +76,10 @@ const moduloActual = computed(() => {
   );
 });
 
+const tienePermisoConsultar = computed(() => {
+  return moduloActual.value && puedeConsultar(moduloActual.value.id);
+});
+
 /* EXPORTAR */
 const exportarExcel = () => {
   if (!usuariosFiltrados.value.length) {
@@ -291,31 +295,70 @@ const imprimir = () => {
     preview.value = URL.createObjectURL(file);
   };
 };
+/* IMAGEN */
+const seleccionarImagen = (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  if (!file.type.startsWith("image/")) {
+    mostrarNotificacion("Solo se permiten imágenes", "error");
+    return;
+  }
+
+  imagen.value = file;
+  preview.value = URL.createObjectURL(file);
+};
+
 /* GUARDAR */
 const guardar = async () => {
   let urlImagen = usuario.value.strfoto;
 
-  if (imagen.value) {
-    const nombre = Date.now() + "_" + imagen.value.name;
-    await supabase.storage.from("usuario").upload(nombre, imagen.value);
-    const { data } = supabase.storage.from("usuario").getPublicUrl(nombre);
-    urlImagen = data.publicUrl;
+  try {
+    // SUBIR IMAGEN
+    if (imagen.value) {
+      const nombre = Date.now() + "_" + imagen.value.name;
+
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from("usuario")
+        .upload(nombre, imagen.value);
+
+      if (uploadError) {
+        console.error("Error subiendo imagen:", uploadError);
+        return mostrarNotificacion("Error al subir imagen", "error");
+      }
+
+      console.log("Imagen subida:", uploadData);
+
+      const { data: publicUrlData } = supabase.storage
+        .from("usuario")
+        .getPublicUrl(nombre);
+
+      urlImagen = publicUrlData.publicUrl;
+    }
+
+    let datos = { ...usuario.value, strfoto: urlImagen };
+
+    // 🔥 IMPORTANTE
+    if (!editando.value) {
+      delete datos.id;
+    }
+
+    const res = editando.value
+      ? await supabase.from("usuario").update(datos).eq("id", usuario.value.id)
+      : await supabase.from("usuario").insert(datos);
+
+    if (res.error) {
+      console.error("Error DB:", res.error);
+      return mostrarNotificacion("Error al guardar", "error");
+    }
+
+    mostrarNotificacion("Guardado correctamente");
+    modal.value = false;
+    cargarUsuarios();
+  } catch (err) {
+    console.error("Error general:", err);
+    mostrarNotificacion("Error inesperado", "error");
   }
-
-  const datos = { ...usuario.value, strfoto: urlImagen };
-
-  const res = editando.value
-    ? await supabase.from("usuario").update(datos).eq("id", usuario.value.id)
-    : await supabase.from("usuario").insert(datos);
-
-  if (res.error) {
-    console.error(res.error);
-    return mostrarNotificacion("Error al guardar", "error");
-  }
-
-  mostrarNotificacion("Guardado correctamente");
-  modal.value = false;
-  cargarUsuarios();
 };
 
 /* CARGAR */
@@ -430,166 +473,179 @@ onMounted(async () => {
 
   <div class="container">
     <Breadcrumbs />
-    <h2>Usuario</h2>
 
-    <!-- FILTROS + BOTONES -->
-    <div class="filtros">
-      <div class="filtros-izq">
-        <input v-model="filtroUsuario" placeholder="Buscar Usuario" />
-
-        <select v-model="filtroPerfil">
-          <option value="">Perfil</option>
-          <option v-for="p in perfiles" :key="p.id" :value="p.id">
-            {{ p.strnombreperfil }}
-          </option>
-        </select>
-
-        <select v-model="filtroEstado">
-          <option value="">Estado</option>
-          <option :value="1">Activo</option>
-          <option :value="0">Inactivo</option>
-        </select>
-
-        <button @click="limpiar">Limpiar</button>
-      </div>
-
-      <!-- BOTONES A LA DERECHA -->
-      <div class="filtros-der">
-        <!-- NUEVO -->
-        <button
-          class="icon-btn nuevo"
-          @click="nuevo"
-          v-if="moduloActual && puedeAgregar(moduloActual.id)"
-          title="Nuevo Usuario"
-        >
-          ➕
-        </button>
-
-        <!-- EXCEL -->
-        <button
-          class="icon-btn excel"
-          @click="exportarExcel"
-          v-if="moduloActual && puedeConsultar(moduloActual.id)"
-          title="Exportar Excel"
-        >
-          📊
-        </button>
-        <button
-          class="icon-btn imprimir"
-          @click="imprimir"
-          v-if="moduloActual && puedeConsultar(moduloActual.id)"
-          title="Imprimir"
-        >
-          🖨️
-        </button>
-      </div>
+    <!-- 🚫 SIN PERMISO -->
+    <div v-if="!tienePermisoConsultar">
+      <h3>No tienes permiso para consultar este módulo</h3>
     </div>
 
-    <!-- TABLA (NO SE TOCÓ) -->
-    <table>
-      <thead>
-        <tr>
-          <th>Foto</th>
-          <th>Usuario</th>
-          <th>Perfil</th>
-          <th>Estado</th>
-          <th>Correo</th>
-          <th>Celular</th>
-          <th>Editar</th>
-          <th>Eliminar</th>
-        </tr>
-      </thead>
+    <!-- ✅ CON PERMISO -->
+    <div v-else>
+      <h2>Usuario</h2>
 
-      <tbody>
-        <tr v-for="u in usuariosPaginados" :key="u.id">
-          <td>
-            <img
-              v-if="u.strfoto"
-              :src="u.strfoto"
-              width="50"
-              style="border-radius: 50%"
-            />
-          </td>
+      <!-- FILTROS + BOTONES -->
+      <div class="filtros">
+        <div class="filtros-izq">
+          <input v-model="filtroUsuario" placeholder="Buscar Usuario" />
 
-          <td>{{ u.strnombreusuario }}</td>
+          <select v-model="filtroPerfil">
+            <option value="">Perfil</option>
+            <option v-for="p in perfiles" :key="p.id" :value="p.id">
+              {{ p.strnombreperfil }}
+            </option>
+          </select>
 
-          <td>
-            {{ perfiles.find((p) => p.id === u.idperfil)?.strnombreperfil }}
-          </td>
+          <select v-model="filtroEstado">
+            <option value="">Estado</option>
+            <option :value="1">Activo</option>
+            <option :value="0">Inactivo</option>
+          </select>
 
-          <td>{{ u.idestadousuario === 1 ? "Activo" : "Inactivo" }}</td>
+          <button @click="limpiar">Limpiar</button>
+        </div>
 
-          <td>{{ u.strcorreo }}</td>
+        <!-- BOTONES -->
+        <div class="filtros-der">
+          <!-- NUEVO -->
+          <button
+            class="icon-btn nuevo"
+            @click="nuevo"
+            v-if="moduloActual && puedeAgregar(moduloActual.id)"
+            title="Nuevo Usuario"
+          >
+            ➕
+          </button>
 
-          <td>{{ u.strnumerocelular }}</td>
+          <!-- EXCEL -->
+          <button
+            class="icon-btn excel"
+            @click="exportarExcel"
+            v-if="moduloActual && puedeConsultar(moduloActual.id)"
+            title="Exportar Excel"
+          >
+            📊
+          </button>
 
-          <td>
-            <button
-              @click="editar(u)"
-              v-if="moduloActual && puedeEditar(moduloActual.id)"
-            >
-              ✏️
-            </button>
-          </td>
+          <!-- IMPRIMIR -->
+          <button
+            class="icon-btn imprimir"
+            @click="imprimir"
+            v-if="moduloActual && puedeConsultar(moduloActual.id)"
+            title="Imprimir"
+          >
+            🖨️
+          </button>
+        </div>
+      </div>
 
-          <td>
-            <button
-              @click="eliminar(u.id)"
-              v-if="moduloActual && puedeEliminar(moduloActual.id)"
-            >
-              🗑️
-            </button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+      <!-- TABLA -->
+      <table>
+        <thead>
+          <tr>
+            <th>Foto</th>
+            <th>Usuario</th>
+            <th>Perfil</th>
+            <th>Estado</th>
+            <th>Correo</th>
+            <th>Celular</th>
+            <th>Editar</th>
+            <th>Eliminar</th>
+          </tr>
+        </thead>
 
-    <Pagination
-      :paginaActual="paginaActual"
-      :totalPaginas="totalPaginas"
-      @cambiar="paginaActual = $event"
-    />
-    <!-- MODAL -->
-    <div v-if="modal" class="modal">
-      <div class="modal-body">
-        <h3 v-if="!editando">Nuevo Usuario</h3>
-        <h3 v-else>Editar Usuario</h3>
+        <tbody>
+          <tr v-for="u in usuariosPaginados" :key="u.id">
+            <td>
+              <img
+                v-if="u.strfoto"
+                :src="u.strfoto"
+                width="50"
+                style="border-radius: 50%"
+              />
+            </td>
 
-        <input
-          v-model="usuario.strnombreusuario"
-          placeholder="Nombre Usuario"
-        />
+            <td>{{ u.strnombreusuario }}</td>
 
-        <select v-model="usuario.idperfil">
-          <option value="">Seleccione Perfil</option>
-          <option v-for="p in perfiles" :key="p.id" :value="p.id">
-            {{ p.strnombreperfil }}
-          </option>
-        </select>
+            <td>
+              {{ perfiles.find((p) => p.id === u.idperfil)?.strnombreperfil }}
+            </td>
 
-        <input v-model="usuario.strpwd" placeholder="Contraseña" />
+            <td>{{ u.idestadousuario === 1 ? "Activo" : "Inactivo" }}</td>
 
-        <select v-model="usuario.idestadousuario">
-          <option :value="1">Activo</option>
-          <option :value="0">Inactivo</option>
-        </select>
+            <td>{{ u.strcorreo }}</td>
 
-        <input v-model="usuario.strcorreo" placeholder="Correo" />
+            <td>{{ u.strnumerocelular }}</td>
 
-        <input v-model="usuario.strnumerocelular" placeholder="Celular" />
+            <td>
+              <button
+                @click="editar(u)"
+                v-if="moduloActual && puedeEditar(moduloActual.id)"
+              >
+                ✏️
+              </button>
+            </td>
 
-        <input type="file" @change="seleccionarImagen" />
+            <td>
+              <button
+                @click="eliminar(u.id)"
+                v-if="moduloActual && puedeEliminar(moduloActual.id)"
+              >
+                🗑️
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
 
-        <img
-          v-if="preview"
-          :src="preview"
-          width="120"
-          style="border-radius: 50%"
-        />
+      <!-- PAGINACIÓN -->
+      <Pagination
+        :paginaActual="paginaActual"
+        :totalPaginas="totalPaginas"
+        @cambiar="paginaActual = $event"
+      />
 
-        <div class="acciones">
-          <button @click="guardar">Guardar</button>
-          <button @click="modal = false">Cancelar</button>
+      <!-- MODAL -->
+      <div v-if="modal" class="modal">
+        <div class="modal-body">
+          <h3 v-if="!editando">Nuevo Usuario</h3>
+          <h3 v-else>Editar Usuario</h3>
+
+          <input
+            v-model="usuario.strnombreusuario"
+            placeholder="Nombre Usuario"
+          />
+
+          <select v-model="usuario.idperfil">
+            <option value="">Seleccione Perfil</option>
+            <option v-for="p in perfiles" :key="p.id" :value="p.id">
+              {{ p.strnombreperfil }}
+            </option>
+          </select>
+
+          <input v-model="usuario.strpwd" placeholder="Contraseña" />
+
+          <select v-model="usuario.idestadousuario">
+            <option :value="1">Activo</option>
+            <option :value="0">Inactivo</option>
+          </select>
+
+          <input v-model="usuario.strcorreo" placeholder="Correo" />
+
+          <input v-model="usuario.strnumerocelular" placeholder="Celular" />
+
+          <input type="file" @change="seleccionarImagen" />
+
+          <img
+            v-if="preview"
+            :src="preview"
+            width="120"
+            style="border-radius: 50%"
+          />
+
+          <div class="acciones">
+            <button @click="guardar">Guardar</button>
+            <button @click="modal = false">Cancelar</button>
+          </div>
         </div>
       </div>
     </div>

@@ -1,11 +1,21 @@
 import { useSupabaseClient } from "#imports";
 import { computed } from "vue";
+import { useRoute } from "vue-router";
+import { watch } from "vue";
 
 export const usePermisos = () => {
   const permisos = useState("permisos", () => []);
   const usuario = useState("usuario", () => null);
   const modulos = useState("modulos", () => []);
   const supabase = useSupabaseClient();
+  const route = useRoute();
+
+  watch(usuario, async (nuevo) => {
+    if (nuevo?.idperfil) {
+      console.log("🔄 Usuario cambió, recargando permisos...");
+      await cargarPermisos(nuevo.idperfil);
+    }
+  });
 
   /* ================================
       DETECTAR ADMIN (FIX REAL)
@@ -113,14 +123,6 @@ export const usePermisos = () => {
   /* ================================
      🔐 VALIDACIONES
      ================================ */
-  /* const tienePermiso = (moduloId, tipo) => {
-    if (esAdmin.value) return true;
-
-    return permisos.value.some((p) => {
-      if (Number(p.idmodulo) !== Number(moduloId)) return false;
-      return p[tipo] === true || p[tipo] === 1;
-    });
-  };*/
   const tienePermiso = (moduloId, tipo) => {
     if (esAdmin.value) return true;
 
@@ -138,7 +140,22 @@ export const usePermisos = () => {
   const puedeBitacora = (moduloId) => tienePermiso(moduloId, "bitacora");
 
   /* ================================
-     🚀 INIT
+     NUEVO: MODULO ACTUAL POR RUTA
+     ================================ */
+  const moduloActual = computed(() => {
+    return modulos.value.find((m) => m.ruta === route.path);
+  });
+
+  const puedeConsultarRuta = computed(() => {
+    if (esAdmin.value) return true;
+
+    if (!moduloActual.value) return true;
+
+    return puedeConsultar(moduloActual.value.id);
+  });
+
+  /* ================================
+     INIT
      ================================ */
   const init = async () => {
     cargarUsuario();
@@ -149,18 +166,21 @@ export const usePermisos = () => {
     // SIEMPRE cargar módulos
     await cargarTodosModulos();
 
-    // 🔥 SI ES ADMIN → NO NECESITA PERMISOS
+    // SI ES ADMIN → NO NECESITA PERMISOS
     if (esAdmin.value) {
-      permisos.value = []; // opcional
+      permisos.value = [];
       return;
     }
 
     // LOCAL STORAGE
-    if (process.client) {
+    /*if (process.client) {
       const permisosStorage = JSON.parse(localStorage.getItem("permisos"));
       if (permisosStorage) {
         permisos.value = permisosStorage;
       }
+    }*/
+    if (usuario.value?.idperfil) {
+      await cargarPermisos(usuario.value.idperfil);
     }
 
     // BD
@@ -184,6 +204,10 @@ export const usePermisos = () => {
     puedeImprimir,
     puedeBitacora,
     validarRuta,
+
+    // NUEVOS
+    moduloActual,
+    puedeConsultarRuta,
 
     init,
   };

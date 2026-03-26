@@ -2,11 +2,31 @@
 import { ref, computed, onMounted } from "vue";
 import Swal from "sweetalert2";
 import Pagination from "@/components/Pagination.vue";
+import { useRoute } from "vue-router";
+import { usePermisos } from "~/composables/usePermisos";
 
 definePageMeta({
   middleware: ["auth", "permiso"],
 });
 
+/* ================================
+   🔐 PERMISOS (NUEVO)
+================================ */
+const route = useRoute();
+const { modulos, puedeConsultar } = usePermisos();
+
+const moduloActual = computed(() => {
+  return modulos.value.find((m) => m.ruta === route.path);
+});
+
+const tienePermisoConsultar = computed(() => {
+  if (!moduloActual.value) return true;
+  return puedeConsultar(moduloActual.value.id);
+});
+
+/* ================================
+   📄 TODO LO DEMÁS IGUAL
+================================ */
 const paginaActual = ref(1);
 const porPagina = 5;
 const totalPaginas = ref(1);
@@ -144,82 +164,91 @@ onMounted(() => {
 </script>
 
 <template>
-  <!-- NOTIFICACION -->
-  <div
-    v-if="notificacion.mostrar"
-    class="notificacion"
-    :class="notificacion.tipo"
-  >
-    {{ notificacion.mensaje }}
-  </div>
-
   <div class="container">
     <Breadcrumbs />
-    <h2>Principal 2.2</h2>
 
-    <!-- BOTON Y FILTRO -->
-    <div class="busqueda">
-      <button class="nuevo" @click="nuevo">➕ Nuevo</button>
-      <input v-model="filtroRegistro" placeholder="Buscar registro..." />
+    <!-- 🔒 SIN PERMISO -->
+    <div v-if="!tienePermisoConsultar">
+      <h2>No tienes permiso para consultar este módulo</h2>
     </div>
 
-    <table>
-      <thead>
-        <tr>
-          <th>Nombre</th>
-          <th>Descripción</th>
-          <th>Estado</th>
-          <th>Editar</th>
-          <th>Eliminar</th>
-        </tr>
-      </thead>
+    <!-- ✅ CON PERMISO -->
+    <template v-else>
+      <!-- NOTIFICACION -->
+      <div
+        v-if="notificacion.mostrar"
+        class="notificacion"
+        :class="notificacion.tipo"
+      >
+        {{ notificacion.mensaje }}
+      </div>
 
-      <tbody>
-        <tr v-if="registrosFiltrados.length === 0">
-          <td colspan="5">Sin registros</td>
-        </tr>
+      <h2>Principal 2.2</h2>
 
-        <tr v-for="(r, index) in registrosPaginados" :key="index">
-          <td>{{ r.nombre }}</td>
-          <td>{{ r.descripcion }}</td>
-          <td>{{ r.estado }}</td>
-          <td>
-            <button @click="editar(r, index)">✏️</button>
-          </td>
-          <td>
-            <button @click="eliminar(index)">🗑️</button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+      <!-- BOTON Y FILTRO -->
+      <div class="busqueda">
+        <button class="nuevo" @click="nuevo">➕ Nuevo</button>
+        <input v-model="filtroRegistro" placeholder="Buscar registro..." />
+      </div>
 
-    <!-- PAGINACIÓN -->
-    <Pagination
-      :paginaActual="paginaActual"
-      :totalPaginas="totalPaginas"
-      @cambiar="paginaActual = $event"
-    />
+      <table>
+        <thead>
+          <tr>
+            <th>Nombre</th>
+            <th>Descripción</th>
+            <th>Estado</th>
+            <th>Editar</th>
+            <th>Eliminar</th>
+          </tr>
+        </thead>
 
-    <!-- MODAL -->
-    <div v-if="modal" class="modal">
-      <div class="modal-body">
-        <h3 v-if="!editando">Nuevo Registro</h3>
-        <h3 v-if="editando">Editar Registro</h3>
+        <tbody>
+          <tr v-if="registrosFiltrados.length === 0">
+            <td colspan="5">Sin registros</td>
+          </tr>
 
-        <input v-model="form.nombre" placeholder="Nombre" />
-        <input v-model="form.descripcion" placeholder="Descripción" />
+          <tr v-for="(r, index) in registrosPaginados" :key="index">
+            <td>{{ r.nombre }}</td>
+            <td>{{ r.descripcion }}</td>
+            <td>{{ r.estado }}</td>
+            <td>
+              <button @click="editar(r, index)">✏️</button>
+            </td>
+            <td>
+              <button @click="eliminar(index)">🗑️</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
 
-        <select v-model="form.estado">
-          <option>Activo</option>
-          <option>Inactivo</option>
-        </select>
+      <!-- PAGINACIÓN -->
+      <Pagination
+        :paginaActual="paginaActual"
+        :totalPaginas="totalPaginas"
+        @cambiar="paginaActual = $event"
+      />
 
-        <div class="acciones">
-          <button @click="guardar">Guardar</button>
-          <button @click="modal = false">Cancelar</button>
+      <!-- MODAL -->
+      <div v-if="modal" class="modal">
+        <div class="modal-body">
+          <h3 v-if="!editando">Nuevo Registro</h3>
+          <h3 v-if="editando">Editar Registro</h3>
+
+          <input v-model="form.nombre" placeholder="Nombre" />
+          <input v-model="form.descripcion" placeholder="Descripción" />
+
+          <select v-model="form.estado">
+            <option>Activo</option>
+            <option>Inactivo</option>
+          </select>
+
+          <div class="acciones">
+            <button @click="guardar">Guardar</button>
+            <button @click="modal = false">Cancelar</button>
+          </div>
         </div>
       </div>
-    </div>
+    </template>
   </div>
 </template>
 

@@ -2,10 +2,15 @@
 import { ref, computed, onMounted } from "vue";
 import Swal from "sweetalert2";
 import Pagination from "@/components/Pagination.vue";
+import { usePermisos } from "~/composables/usePermisos";
 
 definePageMeta({
   middleware: ["auth", "permiso"],
 });
+
+/* 🔐 PERMISOS */
+const { init, puedeConsultarRuta } = usePermisos();
+
 const paginaActual = ref(1);
 const porPagina = 5;
 const totalPaginas = ref(1);
@@ -136,7 +141,8 @@ const eliminar = async (index) => {
 };
 
 /* CARGAR DATOS */
-onMounted(() => {
+onMounted(async () => {
+  await init(); // 👈 IMPORTANTE
   const datos = localStorage.getItem("principalRegistros");
   registros.value = datos ? JSON.parse(datos) : [];
 });
@@ -154,74 +160,77 @@ onMounted(() => {
 
   <div class="container">
     <Breadcrumbs />
-    <h2>Principal 1.1</h2>
 
-    <!-- BOTON Y FILTRO -->
-    <div class="busqueda">
-      <button class="nuevo" @click="nuevo">➕ Nuevo</button>
-      <input v-model="filtroRegistro" placeholder="Buscar registro..." />
-    </div>
+    <!-- 🔒 BLOQUEO POR PERMISOS -->
+    <div v-if="puedeConsultarRuta">
+      <h2>Principal 1.1</h2>
 
-    <table>
-      <thead>
-        <tr>
-          <th>Nombre</th>
-          <th>Descripción</th>
-          <th>Estado</th>
-          <th>Editar</th>
-          <th>Eliminar</th>
-        </tr>
-      </thead>
+      <!-- BOTON Y FILTRO -->
+      <div class="busqueda">
+        <button class="nuevo" @click="nuevo">➕ Nuevo</button>
+        <input v-model="filtroRegistro" placeholder="Buscar registro..." />
+      </div>
 
-      <tbody>
-        <tr v-if="registrosFiltrados.length === 0">
-          <td colspan="5">Sin registros</td>
-        </tr>
+      <table>
+        <thead>
+          <tr>
+            <th>Nombre</th>
+            <th>Descripción</th>
+            <th>Estado</th>
+            <th>Editar</th>
+            <th>Eliminar</th>
+          </tr>
+        </thead>
 
-        <tr v-for="(r, index) in registrosPaginados" :key="index">
-          <td>{{ r.nombre }}</td>
-          <td>{{ r.descripcion }}</td>
-          <td>{{ r.estado }}</td>
-          <td>
-            <button @click="editar(r, index)">✏️</button>
-          </td>
-          <td>
-            <button @click="eliminar(index)">🗑️</button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+        <tbody>
+          <tr v-if="registrosFiltrados.length === 0">
+            <td colspan="5">Sin registros</td>
+          </tr>
 
-    <!-- PAGINACIÓN -->
-    <Pagination
-      :paginaActual="paginaActual"
-      :totalPaginas="totalPaginas"
-      @cambiar="paginaActual = $event"
-    />
+          <tr v-for="(r, index) in registrosPaginados" :key="index">
+            <td>{{ r.nombre }}</td>
+            <td>{{ r.descripcion }}</td>
+            <td>{{ r.estado }}</td>
+            <td>
+              <button @click="editar(r, index)">✏️</button>
+            </td>
+            <td>
+              <button @click="eliminar(index)">🗑️</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
 
-    <!-- MODAL -->
-    <div v-if="modal" class="modal">
-      <div class="modal-body">
-        <h3 v-if="!editando">Nuevo Registro</h3>
-        <h3 v-if="editando">Editar Registro</h3>
+      <!-- PAGINACIÓN -->
+      <Pagination
+        :paginaActual="paginaActual"
+        :totalPaginas="totalPaginas"
+        @cambiar="paginaActual = $event"
+      />
 
-        <input v-model="form.nombre" placeholder="Nombre" />
-        <input v-model="form.descripcion" placeholder="Descripción" />
+      <!-- MODAL -->
+      <div v-if="modal" class="modal">
+        <div class="modal-body">
+          <h3 v-if="!editando">Nuevo Registro</h3>
+          <h3 v-if="editando">Editar Registro</h3>
 
-        <select v-model="form.estado">
-          <option>Activo</option>
-          <option>Inactivo</option>
-        </select>
+          <input v-model="form.nombre" placeholder="Nombre" />
+          <input v-model="form.descripcion" placeholder="Descripción" />
 
-        <div class="acciones">
-          <button @click="guardar">Guardar</button>
-          <button @click="modal = false">Cancelar</button>
+          <select v-model="form.estado">
+            <option>Activo</option>
+            <option>Inactivo</option>
+          </select>
+
+          <div class="acciones">
+            <button @click="guardar">Guardar</button>
+            <button @click="modal = false">Cancelar</button>
+          </div>
         </div>
       </div>
     </div>
   </div>
 </template>
-
 <style scoped>
 .container {
   padding: 30px;
