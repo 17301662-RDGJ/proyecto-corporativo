@@ -15,7 +15,7 @@ const router = useRouter();
 console.log("RECAPTCHA KEY:", config.public.recaptchaSiteKey);
 
 // --------------------------
-// Cargar script de Google reCAPTCHA
+// Función para cargar script de Google reCAPTCHA
 // --------------------------
 const loadRecaptcha = () => {
   return new Promise((resolve) => {
@@ -31,7 +31,7 @@ const loadRecaptcha = () => {
 };
 
 // --------------------------
-// Callback del captcha
+// Callback cuando captcha se valida
 // --------------------------
 const onCaptchaVerified = (token) => {
   captchaToken.value = token;
@@ -43,8 +43,6 @@ const onCaptchaVerified = (token) => {
 // --------------------------
 onMounted(async () => {
   const grecaptcha = await loadRecaptcha();
-
-  // Render del widget
   grecaptcha.render("recaptcha-container", {
     sitekey: config.public.recaptchaSiteKey,
     callback: onCaptchaVerified,
@@ -68,35 +66,35 @@ const login = async () => {
   try {
     const supabase = useSupabaseClient();
 
-    // Buscar usuario
-    const { data: usuarios, error } = await supabase
+    // Buscar usuario por nombre
+    const { data: usuario, error } = await supabase
       .from("usuario")
       .select("*")
       .eq("strnombreusuario", strnombreusuario.value)
       .maybeSingle();
 
-    if (error || !usuarios) {
+    if (error || !usuario) {
       alert("Usuario o contraseña incorrectos");
       return;
     }
 
-    if (usuarios.strpwd !== strpwd.value) {
+    if (usuario.strpwd !== strpwd.value) {
       alert("Usuario o contraseña incorrectos");
       return;
     }
 
     // Guardar usuario en state y localStorage
     const usuarioState = useState("usuario", () => null);
-    usuarioState.value = usuarios;
-    localStorage.setItem("usuario", JSON.stringify(usuarios));
+    usuarioState.value = usuario;
+    localStorage.setItem("usuario", JSON.stringify(usuario));
 
     // Cargar permisos
-    if (usuarios.idperfil) {
-      await cargarPermisos(usuarios.idperfil);
+    if (usuario.idperfil) {
+      await cargarPermisos(usuario.idperfil);
     }
 
-    // Redirigir a dashboard
-    await router.push("/dashboard");
+    console.log("Login exitoso, redirigiendo...");
+    router.push("/dashboard");
   } catch (err) {
     console.error("Error en login:", err);
     alert("Error en el servidor");
