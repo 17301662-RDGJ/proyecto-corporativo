@@ -2,15 +2,15 @@
 import { ref, onMounted, nextTick } from "vue";
 import { useSupabaseClient } from "#imports";
 import { usePermisos } from "~/composables/usePermisos";
-import { useRouter } from "vue-router";
-
+//import { useRouter } from "vue-router";
+const router = useRouter(); // sin importar desde vue-router
 const strnombreusuario = ref("");
 const strpwd = ref("");
 const captchaToken = ref("");
 
 const config = useRuntimeConfig();
 const { cargarPermisos } = usePermisos();
-const router = useRouter();
+//const router = useRouter();
 
 console.log("RECAPTCHA KEY:", config.public.recaptchaSiteKey);
 
@@ -84,7 +84,7 @@ const login = async () => {
       return;
     }
 
-    // 🔥 GUARDAR USUARIO CORRECTAMENTE
+    // GUARDAR USUARIO CORRECTAMENTE
     localStorage.setItem("usuario", JSON.stringify(usuario));
 
     const usuarioState = useState("usuario", () => null);
@@ -97,12 +97,12 @@ const login = async () => {
 
     console.log("Login exitoso, redirigiendo...");
 
-    // 🔥 asegurar que todo esté listo antes de redirigir
+    // asegurar que todo esté listo antes de redirigir
     await nextTick();
-
-    setTimeout(() => {
+    await navigateTo("/dashboard");
+    /*setTimeout(() => {
       router.push("/dashboard");
-    }, 100);
+    }, 100);*/
   } catch (err) {
     console.error("Error en login:", err);
     alert("Error en el servidor");

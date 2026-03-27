@@ -36,6 +36,6 @@ export default defineEventHandler(async (event) => {
 
   return {
     token,
-    usuario: user, // 👈 MUY IMPORTANTE
+    usuario: user, //
   };
 });
