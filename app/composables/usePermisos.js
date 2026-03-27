@@ -10,10 +10,13 @@ export const usePermisos = () => {
   const supabase = useSupabaseClient();
   const route = useRoute();
 
+  let cargando = false;
+
   watch(usuario, async (nuevo) => {
-    if (nuevo?.idperfil) {
-      console.log("🔄 Usuario cambió, recargando permisos...");
+    if (nuevo?.idperfil && !cargando) {
+      cargando = true;
       await cargarPermisos(nuevo.idperfil);
+      cargando = false;
     }
   });
 
