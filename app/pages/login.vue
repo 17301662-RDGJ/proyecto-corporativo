@@ -15,7 +15,7 @@ const router = useRouter();
 console.log("RECAPTCHA KEY:", config.public.recaptchaSiteKey);
 
 // --------------------------
-// Función para cargar script de Google reCAPTCHA
+// Cargar script reCAPTCHA
 // --------------------------
 const loadRecaptcha = () => {
   return new Promise((resolve) => {
@@ -31,7 +31,7 @@ const loadRecaptcha = () => {
 };
 
 // --------------------------
-// Callback cuando captcha se valida
+// Callback captcha
 // --------------------------
 const onCaptchaVerified = (token) => {
   captchaToken.value = token;
@@ -39,7 +39,7 @@ const onCaptchaVerified = (token) => {
 };
 
 // --------------------------
-// Montaje del componente
+// Montaje
 // --------------------------
 onMounted(async () => {
   const grecaptcha = await loadRecaptcha();
@@ -51,7 +51,7 @@ onMounted(async () => {
 });
 
 // --------------------------
-// Función login
+// LOGIN
 // --------------------------
 const login = async () => {
   if (strnombreusuario.value.trim() === "" || strpwd.value.trim() === "") {
@@ -67,7 +67,7 @@ const login = async () => {
   try {
     const supabase = useSupabaseClient();
 
-    // Buscar usuario por nombre
+    // Buscar usuario
     const { data: usuario, error } = await supabase
       .from("usuario")
       .select("*")
@@ -84,10 +84,11 @@ const login = async () => {
       return;
     }
 
-    // Guardar usuario en state y localStorage
+    // 🔥 GUARDAR USUARIO CORRECTAMENTE
+    localStorage.setItem("usuario", JSON.stringify(usuario));
+
     const usuarioState = useState("usuario", () => null);
     usuarioState.value = usuario;
-    localStorage.setItem("usuario", JSON.stringify(usuario));
 
     // Cargar permisos
     if (usuario.idperfil) {
@@ -96,10 +97,12 @@ const login = async () => {
 
     console.log("Login exitoso, redirigiendo...");
 
-    // Redirigir después de actualizar state y permisos
+    // 🔥 asegurar que todo esté listo antes de redirigir
     await nextTick();
-    router.push({ path: "/dashboard" });
-    //router.push("/dashboard");
+
+    setTimeout(() => {
+      router.push("/dashboard");
+    }, 100);
   } catch (err) {
     console.error("Error en login:", err);
     alert("Error en el servidor");

@@ -1,5 +1,18 @@
 <script setup>
 const route = useRoute();
+
+import { onMounted } from "vue";
+
+const usuarioState = useState("usuario", () => null);
+
+onMounted(() => {
+  const usuarioGuardado = localStorage.getItem("usuario");
+
+  if (usuarioGuardado) {
+    usuarioState.value = JSON.parse(usuarioGuardado);
+    console.log("Usuario restaurado:", usuarioState.value);
+  }
+});
 </script>
 
 <template>
