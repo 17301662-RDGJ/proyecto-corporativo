@@ -23,7 +23,7 @@ export default defineNuxtRouteMiddleware((to) => {
 
       // Si no tiene permiso → redirigir
       if (!tienePermiso) {
-        return navigateTo("/sin-acceso");
+        return navigateTo("/login");
       }
     }
   }

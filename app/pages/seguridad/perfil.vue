@@ -11,7 +11,7 @@ import { saveAs } from "file-saver";
 
 definePageMeta({
   middleware: ["auth", "permiso"],
-});
+}); //sin-acceso
 
 const supabase = useSupabaseClient();
 
