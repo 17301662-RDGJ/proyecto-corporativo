@@ -14,5 +14,17 @@ export default defineNuxtRouteMiddleware((to) => {
     if (!usuario.value && to.path !== "/login") {
       return navigateTo("/login");
     }
+
+    // Validar permisos para la ruta actual
+    if (usuario.value && to.path !== "/login") {
+      const permisos = usuario.value.permisos || [];
+
+      const tienePermiso = permisos.some((permiso) => permiso.ruta === to.path);
+
+      // Si no tiene permiso → redirigir
+      if (!tienePermiso) {
+        return navigateTo("/sin-acceso");
+      }
+    }
   }
 });
