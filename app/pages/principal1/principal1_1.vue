@@ -16,6 +16,7 @@ const porPagina = 5;
 const totalPaginas = ref(1);
 
 const registros = ref([]);
+const registroSeleccionado = ref(null);
 
 const modal = ref(false);
 const editando = ref(false);
@@ -89,6 +90,7 @@ const nuevo = () => {
     descripcion: "",
     estado: "Activo",
   };
+
   editando.value = false;
   modal.value = true;
 };
@@ -107,20 +109,41 @@ const guardar = () => {
 
   modal.value = false;
   filtroRegistro.value = "";
+  registroSeleccionado.value = null;
 
   localStorage.setItem("principalRegistros", JSON.stringify(registros.value));
 };
 
-/* EDITAR */
-const editar = (registro, index) => {
-  form.value = { ...registro };
+/* SELECCIONAR FILA */
+const seleccionarRegistro = (registro, index) => {
+  registroSeleccionado.value = { ...registro, index };
+};
+
+/* EDITAR SUPERIOR */
+const editarSeleccionado = () => {
+  if (!registroSeleccionado.value) {
+    mostrarNotificacion("Selecciona un registro", "error");
+    return;
+  }
+
+  form.value = {
+    nombre: registroSeleccionado.value.nombre,
+    descripcion: registroSeleccionado.value.descripcion,
+    estado: registroSeleccionado.value.estado,
+  };
+
   editando.value = true;
-  indexEditar.value = index;
+  indexEditar.value = registroSeleccionado.value.index;
   modal.value = true;
 };
 
-/* ELIMINAR */
-const eliminar = async (index) => {
+/* ELIMINAR SUPERIOR */
+const eliminarSeleccionado = async () => {
+  if (!registroSeleccionado.value) {
+    mostrarNotificacion("Selecciona un registro", "error");
+    return;
+  }
+
   const result = await Swal.fire({
     title: "¿Eliminar registro?",
     text: "Esta acción no se puede deshacer",
@@ -134,7 +157,9 @@ const eliminar = async (index) => {
 
   if (!result.isConfirmed) return;
 
-  registros.value.splice(index, 1);
+  registros.value.splice(registroSeleccionado.value.index, 1);
+  registroSeleccionado.value = null;
+
   mostrarNotificacion("Registro eliminado correctamente");
 
   localStorage.setItem("principalRegistros", JSON.stringify(registros.value));
@@ -142,7 +167,7 @@ const eliminar = async (index) => {
 
 /* CARGAR DATOS */
 onMounted(async () => {
-  await init(); // 👈 IMPORTANTE
+  await init();
   const datos = localStorage.getItem("principalRegistros");
   registros.value = datos ? JSON.parse(datos) : [];
 });
@@ -161,42 +186,51 @@ onMounted(async () => {
   <div class="container">
     <Breadcrumbs />
 
-    <!-- 🔒 BLOQUEO POR PERMISOS -->
     <div v-if="puedeConsultarRuta">
       <h2>Principal 1.1</h2>
 
-      <!-- BOTON Y FILTRO -->
-      <div class="busqueda">
-        <button class="nuevo" @click="nuevo">➕ Nuevo</button>
+      <!-- BARRA SUPERIOR -->
+      <div class="toolbar">
+        <div class="acciones-superior">
+          <button class="nuevo" @click="nuevo">➕ Nuevo</button>
+          <button class="editar-btn" @click="editarSeleccionado">
+            ✏️ Editar
+          </button>
+          <button class="eliminar-btn" @click="eliminarSeleccionado">
+            🗑️ Eliminar
+          </button>
+        </div>
+
         <input v-model="filtroRegistro" placeholder="Buscar registro..." />
       </div>
 
+      <!-- TABLA -->
       <table>
         <thead>
           <tr>
             <th>Nombre</th>
             <th>Descripción</th>
             <th>Estado</th>
-            <th>Editar</th>
-            <th>Eliminar</th>
           </tr>
         </thead>
 
         <tbody>
           <tr v-if="registrosFiltrados.length === 0">
-            <td colspan="5">Sin registros</td>
+            <td colspan="3">Sin registros</td>
           </tr>
 
-          <tr v-for="(r, index) in registrosPaginados" :key="index">
+          <tr
+            v-for="(r, index) in registrosPaginados"
+            :key="index"
+            @click="seleccionarRegistro(r, index)"
+            :class="{
+              seleccionado:
+                registroSeleccionado && registroSeleccionado.index === index,
+            }"
+          >
             <td>{{ r.nombre }}</td>
             <td>{{ r.descripcion }}</td>
             <td>{{ r.estado }}</td>
-            <td>
-              <button @click="editar(r, index)">✏️</button>
-            </td>
-            <td>
-              <button @click="eliminar(index)">🗑️</button>
-            </td>
           </tr>
         </tbody>
       </table>
@@ -211,8 +245,7 @@ onMounted(async () => {
       <!-- MODAL -->
       <div v-if="modal" class="modal">
         <div class="modal-body">
-          <h3 v-if="!editando">Nuevo Registro</h3>
-          <h3 v-if="editando">Editar Registro</h3>
+          <h3>{{ editando ? "Editar Registro" : "Nuevo Registro" }}</h3>
 
           <input v-model="form.nombre" placeholder="Nombre" />
           <input v-model="form.descripcion" placeholder="Descripción" />
@@ -231,6 +264,7 @@ onMounted(async () => {
     </div>
   </div>
 </template>
+
 <style scoped>
 .container {
   padding: 30px;
@@ -238,13 +272,11 @@ onMounted(async () => {
   min-height: 100vh;
 }
 
-/* TITULO */
 h2 {
   margin-bottom: 20px;
   color: #1e3a5f;
 }
 
-/* NOTIFICACION */
 .notificacion {
   position: fixed;
   top: 20px;
@@ -264,7 +296,6 @@ h2 {
   background: #e53935;
 }
 
-/* BOTONES GENERALES */
 button {
   border: none;
   padding: 8px 14px;
@@ -277,37 +308,46 @@ button:hover {
   transform: scale(1.05);
 }
 
-/* BOTON NUEVO */
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+
+.acciones-superior {
+  display: flex;
+  gap: 10px;
+}
+
 .nuevo {
   background: #4caf50;
   color: white;
-  padding: 10px 18px;
-  font-weight: bold;
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
 }
 
-/* BUSQUEDA (boton + input) */
-.busqueda {
-  display: flex;
-  gap: 20px;
-  flex-wrap: wrap;
-  margin-bottom: 15px;
+.editar-btn {
+  background: #ffc107;
 }
 
-.busqueda input {
+.eliminar-btn {
+  background: #e53935;
+  color: white;
+}
+
+.toolbar input {
   padding: 8px 10px;
   border-radius: 6px;
   border: 1px solid #ccc;
 }
 
-/* TABLA */
 table {
   width: 100%;
   border-collapse: collapse;
   background: white;
   border-radius: 8px;
   overflow: hidden;
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
 }
 
 th {
@@ -324,36 +364,22 @@ td {
 
 tr:hover {
   background: #f2f6ff;
+  cursor: pointer;
 }
 
-/* BOTONES TABLA */
-td button {
-  font-size: 16px;
+.seleccionado {
+  background: #dbeafe !important;
 }
 
-td button:first-child {
-  background: #ffc107;
-}
-
-td button:last-child {
-  background: #e53935;
-  color: white;
-}
-
-/* MODAL */
 .modal {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  inset: 0;
   background: rgba(0, 0, 0, 0.55);
   display: flex;
   justify-content: center;
   align-items: center;
 }
 
-/* CONTENIDO MODAL */
 .modal-body {
   background: white;
   padding: 30px;
@@ -362,45 +388,11 @@ td button:last-child {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
 }
 
-.modal-body h3 {
-  text-align: center;
-}
-
-.modal-body input,
-.modal-body select {
-  padding: 9px;
-  border-radius: 6px;
-  border: 1px solid #ccc;
-}
-
-/* BOTONES MODAL */
 .acciones {
   display: flex;
   justify-content: space-between;
   margin-top: 15px;
-}
-
-.acciones button:first-child {
-  background: #4caf50;
-  color: white;
-}
-
-.acciones button:last-child {
-  background: #e53935;
-  color: white;
-}
-
-/* RESPONSIVE */
-@media (max-width: 700px) {
-  table {
-    font-size: 14px;
-  }
-
-  .modal-body {
-    width: 90%;
-  }
 }
 </style>
