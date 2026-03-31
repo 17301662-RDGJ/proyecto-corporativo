@@ -1,4 +1,7 @@
 export default defineNuxtRouteMiddleware(async (to) => {
+  // ✅ Permitir login siempre
+  if (to.path === "/login") return;
+
   if (process.client) {
     const usuario = useState("usuario");
 
@@ -15,7 +18,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
 
     const supabase = useSupabaseClient();
 
-    // Permitir dashboard siempre
+    // ✅ Permitir dashboard siempre
     if (to.path === "/dashboard") return;
 
     // Buscar módulo por la ruta actual
@@ -49,9 +52,14 @@ export default defineNuxtRouteMiddleware(async (to) => {
       return navigateTo("/login");
     }
 
-    // Si no tiene permiso → login
+    // Si no tiene permiso → limpiar sesión + login
     if (!permiso || !(permiso.consultar === true || permiso.consultar === 1)) {
       console.warn("Sin permiso para esta ruta");
+
+      localStorage.removeItem("usuario");
+      localStorage.removeItem("permisos");
+      usuario.value = null;
+
       return navigateTo("/login");
     }
   }
