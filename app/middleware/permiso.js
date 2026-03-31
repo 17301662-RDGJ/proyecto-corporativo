@@ -25,20 +25,20 @@ export default defineNuxtRouteMiddleware(async (to) => {
       .eq("ruta", to.path)
       .maybeSingle();
 
-    // Si no existe módulo, negar acceso
     if (error) {
       console.error("Error buscando módulo:", error);
-      return navigateTo("/sin-acceso");
+      return navigateTo("/login");
     }
 
+    // Si no existe módulo → login
     if (!modulo) {
       console.warn("Módulo no encontrado para la ruta:", to.path);
-      return navigateTo("/sin-acceso");
+      return navigateTo("/login");
     }
 
-    // Buscar permiso del perfil para ese módulo
+    // Buscar permiso del perfil
     const { data: permiso, error: errorPermiso } = await supabase
-      .from("permisos_perfil") // ✅ corregido
+      .from("permisos_perfil")
       .select("*")
       .eq("idperfil", usuario.value.idperfil)
       .eq("idmodulo", modulo.id)
@@ -46,13 +46,13 @@ export default defineNuxtRouteMiddleware(async (to) => {
 
     if (errorPermiso) {
       console.error("Error buscando permiso:", errorPermiso);
-      return navigateTo("/sin-acceso");
+      return navigateTo("/login");
     }
 
-    // Validar permiso de consultar
+    // Si no tiene permiso → login
     if (!permiso || !(permiso.consultar === true || permiso.consultar === 1)) {
-      console.warn("Sin permiso para consultar esta ruta");
-      return navigateTo("/sin-acceso");
+      console.warn("Sin permiso para esta ruta");
+      return navigateTo("/login");
     }
   }
 });
