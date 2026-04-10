@@ -88,7 +88,7 @@ export const usePermisos = () => {
 
   /* ================================
      🔐 PERMISOS
-     ================================ */
+     ================================ 
   const cargarPermisos = async (perfilId) => {
     if (!perfilId) return;
 
@@ -109,8 +109,41 @@ permisos.value = [...(data || [])];
     }
     //console.log("Permisos cargados:", permisos.value);
     console.log("Permisos BD:", JSON.stringify(data, null, 2));
-  };
+  };*/
+const cargarPermisos = async (idperfil) => {
+  if (!idperfil) return;
 
+  const { data, error } = await supabase
+    .from("permisos_perfil")
+    .select(`
+      idmodulo,
+      consultar,
+      agregar,
+      editar,
+      eliminar,
+      imprimir,
+      bitacora,
+      modulo (
+        id,
+        strnombremodulo,
+        ruta
+      )
+    `)
+    .eq("idperfil", idperfil);
+
+  if (error) {
+    console.error("Error cargando permisos:", error);
+    return;
+  }
+
+  console.log("PERMISOS DESDE BD:", data);
+
+  permisos.value = data || [];
+
+  if (process.client) {
+    localStorage.setItem("permisos", JSON.stringify(permisos.value));
+  }
+};
   /* ================================
      📦 MODULOS PARA NAVBAR
      ================================ */
