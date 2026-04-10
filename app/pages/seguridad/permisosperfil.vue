@@ -187,15 +187,15 @@ const guardar = async () => {
     if (error) console.error("Error INSERT:", error);
   }
 
-  //await cargarPermisosPerfil(perfilSeleccionado.value);
-  await cargarPermisos(idperfil);
-
-  if (usuario.value?.idperfil === perfilSeleccionado.value) {
-    await cargarPermisos(usuario.value.idperfil);
-  }
+  /* 🔥 FIX IMPORTANTE */
+  await cargarPermisos(perfilSeleccionado.value);
 
   if (process.client) {
     localStorage.removeItem("permisos");
+  }
+
+  if (usuario.value?.idperfil === perfilSeleccionado.value) {
+    await cargarPermisos(usuario.value.idperfil);
   }
 
   mostrarNotificacion("Permisos guardados correctamente");
