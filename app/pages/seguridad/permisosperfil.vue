@@ -145,7 +145,7 @@ const guardar = async () => {
     return mostrarNotificacion("Seleccione un perfil", "error");
   }
 
-  // 🔥 SOLO PERMISOS VALIDOS
+  // SOLO PERMISOS VALIDOS
   const permisosValidos = permisos.value.filter(
     (p) => p.idperfil && p.idmodulo,
   );
@@ -200,10 +200,14 @@ const guardar = async () => {
   // 🔄 RECARGAR LOCAL
   await cargarPermisosPerfil(perfilSeleccionado.value);
 
-  // 🔥 SINCRONIZAR CON SISTEMA GLOBAL
+  // SINCRONIZAR CON SISTEMA GLOBAL
   if (usuario.value?.idperfil === perfilSeleccionado.value) {
     await cargarPermisos(usuario.value.idperfil);
   }
+  // LIMPIAR CACHE DE PERMISOS ( ESTE ES EL FIX)
+if (process.client) {
+  localStorage.removeItem("permisos");
+}
 
   mostrarNotificacion("Permisos guardados correctamente");
 };
