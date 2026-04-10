@@ -140,89 +140,62 @@ const obtenerPermiso = (perfilId, moduloId) => {
 };
 
 /* GUARDAR */
-await supabase
-  .from("permisos_perfil")
-  .delete()
-  .eq("idperfil", perfilSeleccionado.value);
-  
 const guardar = async () => {
   if (!perfilSeleccionado.value) {
     return mostrarNotificacion("Seleccione un perfil", "error");
   }
 
-  // SOLO PERMISOS VALIDOS
- const permisosValidos = permisos.value.filter(
-  (p) =>
-    p.idperfil &&
-    p.idmodulo &&
-    (
-      p.agregar ||
-      p.editar ||
-      p.eliminar ||
-      p.consultar ||
-      p.imprimir ||
-      p.bitacora
-    )
-);
+  // 🔥 BORRAR ANTES DE INSERTAR
+  const { error: errorDelete } = await supabase
+    .from("permisos_perfil")
+    .delete()
+    .eq("idperfil", perfilSeleccionado.value);
+
+  if (errorDelete) {
+    console.error("Error DELETE:", errorDelete);
+    return;
+  }
+
+  const permisosValidos = permisos.value.filter(
+    (p) =>
+      p.idperfil &&
+      p.idmodulo &&
+      (
+        p.agregar ||
+        p.editar ||
+        p.eliminar ||
+        p.consultar ||
+        p.imprimir ||
+        p.bitacora
+      )
+  );
 
   for (let p of permisosValidos) {
     console.log("Guardando:", p);
 
-    const { data: existe, error: errorSelect } = await supabase
-      .from("permisos_perfil")
-      .select("id")
-      .eq("idperfil", p.idperfil)
-      .eq("idmodulo", p.idmodulo);
+    const { error } = await supabase.from("permisos_perfil").insert({
+      idperfil: p.idperfil,
+      idmodulo: p.idmodulo,
+      agregar: p.agregar,
+      editar: p.editar,
+      eliminar: p.eliminar,
+      consultar: p.consultar,
+      imprimir: p.imprimir,
+      bitacora: p.bitacora,
+    });
 
-    if (errorSelect) {
-      console.error("Error SELECT:", errorSelect);
-      continue;
-    }
-
-    if (existe.length > 0) {
-      // 🔄 UPDATE
-      const { error } = await supabase
-        .from("permisos_perfil")
-        .update({
-          agregar: p.agregar,
-          editar: p.editar,
-          eliminar: p.eliminar,
-          consultar: p.consultar,
-          imprimir: p.imprimir,
-          bitacora: p.bitacora,
-        })
-        .eq("idperfil", p.idperfil)
-        .eq("idmodulo", p.idmodulo);
-
-      if (error) console.error("Error UPDATE:", error);
-    } else {
-      // ➕ INSERT
-      const { error } = await supabase.from("permisos_perfil").insert({
-        idperfil: p.idperfil,
-        idmodulo: p.idmodulo,
-        agregar: p.agregar,
-        editar: p.editar,
-        eliminar: p.eliminar,
-        consultar: p.consultar,
-        imprimir: p.imprimir,
-        bitacora: p.bitacora,
-      });
-
-      if (error) console.error("Error INSERT:", error);
-    }
+    if (error) console.error("Error INSERT:", error);
   }
 
-  // 🔄 RECARGAR LOCAL
   await cargarPermisosPerfil(perfilSeleccionado.value);
 
-  // SINCRONIZAR CON SISTEMA GLOBAL
   if (usuario.value?.idperfil === perfilSeleccionado.value) {
     await cargarPermisos(usuario.value.idperfil);
   }
-  // LIMPIAR CACHE DE PERMISOS ( ESTE ES EL FIX)
-if (process.client) {
-  localStorage.removeItem("permisos");
-}
+
+  if (process.client) {
+    localStorage.removeItem("permisos");
+  }
 
   mostrarNotificacion("Permisos guardados correctamente");
 };
@@ -300,7 +273,7 @@ onMounted(async () => {
           <td>
             <input
               type="checkbox"
-              v-model="obtenerPermiso(perfilSeleccionado, m.id).agregar"
+              v-model="obtenerPermiso(perfilSeleccionado.value, m.id).agregar"
               :disabled="!puedeEditar(moduloActual?.id)"
               :style="{ accentColor: colorCheckbox }"
             />
