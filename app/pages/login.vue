@@ -2,7 +2,7 @@
 import { ref, onMounted, nextTick } from "vue";
 import { useSupabaseClient } from "#imports";
 import { usePermisos } from "~/composables/usePermisos";
-//import { useRouter } from "vue-router";
+
 const router = useRouter(); // sin importar desde vue-router
 const strnombreusuario = ref("");
 const strpwd = ref("");
@@ -10,7 +10,6 @@ const captchaToken = ref("");
 
 const config = useRuntimeConfig();
 const { cargarPermisos } = usePermisos();
-//const router = useRouter();
 
 console.log("RECAPTCHA KEY:", config.public.recaptchaSiteKey);
 
@@ -92,7 +91,7 @@ const login = async () => {
 
     // Cargar permisos
     if (usuario.idperfil) {
-      await cargarPermisos(usuario.idperfil);
+      //await cargarPermisos(usuario.idperfil);
     }
 
     console.log("Login exitoso, redirigiendo...");
