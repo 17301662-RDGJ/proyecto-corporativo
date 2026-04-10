@@ -190,8 +190,8 @@ permisos.value = [...(data || [])];
     /* BD
     if (usuario.value?.idperfil) {
       await cargarPermisos(usuario.value.idperfil);
-    }
-  };*/
+    }*/
+  };
 
   return {
     usuario,
@@ -215,4 +215,4 @@ permisos.value = [...(data || [])];
 
     init,
   };
-};      }
+};     
