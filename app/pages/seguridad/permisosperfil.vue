@@ -140,15 +140,30 @@ const obtenerPermiso = (perfilId, moduloId) => {
 };
 
 /* GUARDAR */
+await supabase
+  .from("permisos_perfil")
+  .delete()
+  .eq("idperfil", perfilSeleccionado.value);
+  
 const guardar = async () => {
   if (!perfilSeleccionado.value) {
     return mostrarNotificacion("Seleccione un perfil", "error");
   }
 
   // SOLO PERMISOS VALIDOS
-  const permisosValidos = permisos.value.filter(
-    (p) => p.idperfil && p.idmodulo,
-  );
+ const permisosValidos = permisos.value.filter(
+  (p) =>
+    p.idperfil &&
+    p.idmodulo &&
+    (
+      p.agregar ||
+      p.editar ||
+      p.eliminar ||
+      p.consultar ||
+      p.imprimir ||
+      p.bitacora
+    )
+);
 
   for (let p of permisosValidos) {
     console.log("Guardando:", p);
