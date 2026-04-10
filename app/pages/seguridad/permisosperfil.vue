@@ -145,7 +145,7 @@ const guardar = async () => {
     return mostrarNotificacion("Seleccione un perfil", "error");
   }
 
-  // 🔥 BORRAR ANTES DE INSERTAR
+  // BORRAR ANTES DE INSERTAR
   const { error: errorDelete } = await supabase
     .from("permisos_perfil")
     .delete()
@@ -187,7 +187,8 @@ const guardar = async () => {
     if (error) console.error("Error INSERT:", error);
   }
 
-  await cargarPermisosPerfil(perfilSeleccionado.value);
+  //await cargarPermisosPerfil(perfilSeleccionado.value);
+  await cargarPermisos(idperfil);
 
   if (usuario.value?.idperfil === perfilSeleccionado.value) {
     await cargarPermisos(usuario.value.idperfil);

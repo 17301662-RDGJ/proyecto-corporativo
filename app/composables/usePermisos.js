@@ -102,12 +102,13 @@ export const usePermisos = () => {
       return;
     }
 
-    permisos.value = data || [];
-
+    //permisos.value = data || [];
+permisos.value = [...(data || [])];
     if (process.client) {
       localStorage.setItem("permisos", JSON.stringify(permisos.value));
     }
-    console.log("Permisos cargados:", permisos.value);
+    //console.log("Permisos cargados:", permisos.value);
+    console.log("Permisos BD:", JSON.stringify(data, null, 2));
   };
 
   /* ================================
@@ -186,11 +187,11 @@ export const usePermisos = () => {
       await cargarPermisos(usuario.value.idperfil);
     }
 
-    // BD
+    /* BD
     if (usuario.value?.idperfil) {
       await cargarPermisos(usuario.value.idperfil);
     }
-  };
+  };*/
 
   return {
     usuario,
@@ -214,4 +215,4 @@ export const usePermisos = () => {
 
     init,
   };
-};
+};      }
