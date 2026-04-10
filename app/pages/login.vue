@@ -3,7 +3,7 @@ import { ref, onMounted, nextTick } from "vue";
 import { useSupabaseClient } from "#imports";
 import { usePermisos } from "~/composables/usePermisos";
 
-const router = useRouter(); // sin importar desde vue-router
+const router = useRouter();
 const strnombreusuario = ref("");
 const strpwd = ref("");
 const captchaToken = ref("");
@@ -83,25 +83,22 @@ const login = async () => {
       return;
     }
 
-    // GUARDAR USUARIO CORRECTAMENTE
+    // GUARDAR USUARIO
     localStorage.setItem("usuario", JSON.stringify(usuario));
 
     const usuarioState = useState("usuario", () => null);
     usuarioState.value = usuario;
 
-    // Cargar permisos
+    // 🔥 FIX: CARGAR PERMISOS
     if (usuario.idperfil) {
-      //await cargarPermisos(usuario.idperfil);
+      await cargarPermisos(usuario.idperfil);
     }
 
     console.log("Login exitoso, redirigiendo...");
 
-    // asegurar que todo esté listo antes de redirigir
     await nextTick();
     await navigateTo("/dashboard");
-    /*setTimeout(() => {
-      router.push("/dashboard");
-    }, 100);*/
+
   } catch (err) {
     console.error("Error en login:", err);
     alert("Error en el servidor");
