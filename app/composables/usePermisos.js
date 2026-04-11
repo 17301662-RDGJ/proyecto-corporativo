@@ -150,8 +150,15 @@ const modulosPermitidos = computed(() => {
     return modulos.value.find((m) => m.ruta === route.path);
   });*/
 const moduloActual = computed(() => {
-  let modulo = modulos.value.find((m) => m.ruta === route.path);
+  //let modulo = modulos.value.find((m) => m.ruta === route.path);
+let modulo = modulos.value.find((m) => {
+  if (!m.ruta) return false;
 
+  const cleanRuta = m.ruta.replace(/\/$/, "");
+  const cleanPath = route.path.replace(/\/$/, "");
+
+  return cleanPath.startsWith(cleanRuta);
+});
   // FIX: fallback si no encuentra
   if (!modulo && modulos.value.length > 0) {
     console.warn("Módulo no encontrado para la ruta:", route.path);
