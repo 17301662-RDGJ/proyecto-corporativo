@@ -1,9 +1,8 @@
 import { useSupabaseClient } from "#imports";
 import { computed, watch } from "vue";
 import { useRoute } from "vue-router";
-import { usePermisos } from "~/composables/usePermisos";
 
-const { modulos } = usePermisos();
+//const { modulos } = usePermisos();
 export const usePermisos = () => {
   const permisos = useState("permisos", () => []);
   const usuario = useState("usuario", () => null);
