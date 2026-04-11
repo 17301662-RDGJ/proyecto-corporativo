@@ -9,8 +9,8 @@ const strpwd = ref("");
 const captchaToken = ref("");
 
 const config = useRuntimeConfig();
-const { cargarPermisos } = usePermisos();
-
+//const { cargarPermisos } = usePermisos();
+const { cargarPermisos, refrescarPermisos } = usePermisos();
 console.log("RECAPTCHA KEY:", config.public.recaptchaSiteKey);
 
 // --------------------------
@@ -66,7 +66,6 @@ const login = async () => {
   try {
     const supabase = useSupabaseClient();
 
-    // Buscar usuario
     const { data: usuario, error } = await supabase
       .from("usuario")
       .select("*")
@@ -89,12 +88,10 @@ const login = async () => {
     const usuarioState = useState("usuario", () => null);
     usuarioState.value = usuario;
 
-    // FIX: CARGAR PERMISOS
-    if (usuario.idperfil) {
-      await cargarPermisos(usuario.idperfil);
-    }
+    console.log("Login exitoso, cargando permisos...");
 
-    console.log("Login exitoso, redirigiendo...");
+    // ✅ SOLO ESTO (IMPORTANTE)
+    await refrescarPermisos();
 
     await nextTick();
     await navigateTo("/dashboard");
@@ -103,8 +100,8 @@ const login = async () => {
     console.error("Error en login:", err);
     alert("Error en el servidor");
   }
-  await refrescarPermisos();
 };
+console.log("PERMISOS ACTUALIZADOS");
 </script>
 
 <template>
