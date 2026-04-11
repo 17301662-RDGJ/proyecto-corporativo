@@ -156,7 +156,7 @@ const moduloActual = computed(() => {
   });
 
   /* ================================
-     INIT (CORREGIDO)
+     INIT
   ================================ */
   const init = async () => {
     cargarUsuario();

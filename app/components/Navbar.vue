@@ -1,10 +1,17 @@
 <script setup>
 import { ref, onMounted, computed } from "vue";
 import { usePermisos } from "~/composables/usePermisos";
-
+import { watch } from "vue";
 const { init, puedeConsultar, usuario, modulos } = usePermisos();
 
 const cargado = ref(false);
+
+const { permisos, refrescarPermisos } = usePermisos();
+
+watch(usuario, async () => {
+  await refrescarPermisos();
+});
+
 
 /* ADMIN POR PERFIL */
 const esAdmin = computed(() => {
@@ -14,8 +21,19 @@ const esAdmin = computed(() => {
 /* PADRES */
 const esPadre = (m) => !m.parent_id;
 
-/* PRINCIPALES */
+/* PRINCIPALES 
 const modulosPrincipales = computed(() => {
+  return modulos.value.filter((m) => {
+    if (!esPadre(m)) return false;
+
+    if (esAdmin.value) return true;
+
+    return puedeConsultar(m.id);
+  });
+});*/
+const modulosPrincipales = computed(() => {
+  if (!modulos.value.length) return [];
+
   return modulos.value.filter((m) => {
     if (!esPadre(m)) return false;
 
@@ -25,8 +43,19 @@ const modulosPrincipales = computed(() => {
   });
 });
 
-/* HIJOS */
+/* HIJOS 
 const hijos = (id) => {
+  return modulos.value.filter((m) => {
+    if (m.parent_id !== id) return false;
+
+    if (esAdmin.value) return true;
+
+    return puedeConsultar(m.id);
+  });
+};*/
+const hijos = (id) => {
+  if (!modulos.value.length) return [];
+
   return modulos.value.filter((m) => {
     if (m.parent_id !== id) return false;
 
@@ -56,6 +85,10 @@ const generarRuta = (modulo) => {
 
 onMounted(async () => {
   await init();
+
+  console.log("MODULOS:", modulos.value);
+  console.log("USUARIO:", usuario.value);
+
   cargado.value = true;
 });
 </script>
