@@ -18,7 +18,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
 
     const supabase = useSupabaseClient();
 
-    // ✅ Permitir dashboard siempre
+    // Permitir dashboard siempre
     if (to.path === "/dashboard") return;
 
     // Buscar módulo por la ruta actual

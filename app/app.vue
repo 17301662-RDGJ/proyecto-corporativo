@@ -30,10 +30,9 @@ onMounted(() => {
         route.path !== '/seguridad/perfil' &&
         route.path !== '/seguridad/permisosperfil' &&
         route.path !== '/seguridad/recuperar-password' &&
-        route.path !== '/seguridad/cambiar-password'
-      "
+        route.path !== '/seguridad/cambiar-password'"
     />
     <NuxtPage />
   </div>
-  -
+
 </template>

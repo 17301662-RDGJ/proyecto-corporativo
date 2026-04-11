@@ -6,15 +6,15 @@ const { init, puedeConsultar, usuario, modulos } = usePermisos();
 
 const cargado = ref(false);
 
-/* 🔹 ADMIN POR PERFIL */
+/* ADMIN POR PERFIL */
 const esAdmin = computed(() => {
   return usuario.value?.idperfil === "21dde214-a4f0-4d75-99d7-a2f569cc13a8";
 });
 
-/* 🔹 PADRES */
+/* PADRES */
 const esPadre = (m) => !m.parent_id;
 
-/* 🔹 PRINCIPALES */
+/* PRINCIPALES */
 const modulosPrincipales = computed(() => {
   return modulos.value.filter((m) => {
     if (!esPadre(m)) return false;
@@ -25,7 +25,7 @@ const modulosPrincipales = computed(() => {
   });
 });
 
-/* 🔹 HIJOS */
+/* HIJOS */
 const hijos = (id) => {
   return modulos.value.filter((m) => {
     if (m.parent_id !== id) return false;
@@ -36,7 +36,7 @@ const hijos = (id) => {
   });
 };
 
-/* 🔹 GENERAR RUTA CORRECTA */
+/* GENERAR RUTA CORRECTA */
 /*const generarRuta = (modulo) => {
   if (!modulo?.ruta) return "#";
 
@@ -69,7 +69,7 @@ onMounted(async () => {
 
       <li v-for="mod in modulosPrincipales" :key="mod.id" class="dropdown">
         <!-- Módulo principal sin submenú -->
-        <!-- 🔹 Si NO tiene hijos → es link -->
+        <!-- Si NO tiene hijos → es link -->
         <NuxtLink
           v-if="!hijos(mod.id).length"
           :to="generarRuta(mod)"
@@ -78,7 +78,7 @@ onMounted(async () => {
           {{ mod.strnombremodulo }}
         </NuxtLink>
 
-        <!-- 🔹 Si TIENE hijos → NO es link -->
+        <!-- Si TIENE hijos → NO es link -->
         <span v-else class="menu-title">
           {{ mod.strnombremodulo }}
         </span>

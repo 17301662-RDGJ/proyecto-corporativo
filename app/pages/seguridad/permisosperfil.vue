@@ -19,7 +19,6 @@ const { init, puedeConsultar, puedeEditar, usuario, cargarPermisos, refrescarPer
 const perfiles = ref([]);
 const modulos = ref([]);
 const permisos = ref([]);
-
 const perfilSeleccionado = ref("");
 const filtroModulo = ref("");
 
@@ -145,7 +144,7 @@ const guardar = async () => {
     return mostrarNotificacion("Seleccione un perfil", "error");
   }
 
-  // 🔥 GUARDAR PRIMERO
+  // GUARDAR PRIMERO
   const { error: errorDelete } = await supabase
     .from("permisos_perfil")
     .delete()
@@ -183,7 +182,7 @@ const guardar = async () => {
     if (error) console.error("Error INSERT:", error);
   }
 
-  // 🔥 REFRESH GLOBAL (IMPORTANTE)
+  // REFRESH GLOBAL (IMPORTANTE)
   await refrescarPermisos();
 
   if (process.client) {

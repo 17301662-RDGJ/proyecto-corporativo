@@ -6,7 +6,6 @@ export const usePermisos = () => {
   const permisos = useState("permisos", () => []);
   const usuario = useState("usuario", () => null);
   const modulos = useState("modulos", () => []);
-
   const supabase = useSupabaseClient();
   const route = useRoute();
 
@@ -133,10 +132,22 @@ export const usePermisos = () => {
 
   /* ================================
      MODULO ACTUAL
-  ================================ */
+  ================================ 
   const moduloActual = computed(() => {
     return modulos.value.find((m) => m.ruta === route.path);
-  });
+  });*/
+const moduloActual = computed(() => {
+  let modulo = modulos.value.find((m) => m.ruta === route.path);
+
+  // FIX: fallback si no encuentra
+  if (!modulo && modulos.value.length > 0) {
+    console.warn("Módulo no encontrado para la ruta:", route.path);
+     modulo = modulos.value.find(m => m.ruta && m.ruta !== "/") || modulos.value[0];
+  }
+
+  return modulo;
+});
+
 
   const puedeConsultarRuta = computed(() => {
     if (esAdmin.value) return true;
