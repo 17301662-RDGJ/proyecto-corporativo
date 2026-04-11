@@ -18,8 +18,8 @@ const client = useSupabaseClient();
 const route = useRoute();
 
 /* 🔐 PERMISOS */
-const { init, validarRuta, cargarPermisos } = usePermisos();
-
+//const { init, validarRuta, cargarPermisos } = usePermisos();
+const { init, puedeConsultarRuta } = usePermisos();
 /* DATA */
 const modulos = ref([]);
 const modal = ref(false);
@@ -339,7 +339,7 @@ const eliminar = async (id) => {
 onMounted(async () => {
   await init();
 
-  const permitido = await validarRuta(route.path);
+  const permitido = puedeConsultarRuta.value;
 
   if (!permitido) {
     window.location.href = "/dashboard";
