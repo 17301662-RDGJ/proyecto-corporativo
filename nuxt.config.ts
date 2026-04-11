@@ -1,5 +1,7 @@
 export default defineNuxtConfig({
+
   ssr: false,
+
   app: {
     head: {
       script: [
@@ -18,12 +20,11 @@ export default defineNuxtConfig({
     redirect: false,
   },
 
-  runtimeConfig: {
-    supabaseUrl: process.env.SUPABASE_URL,
-    supabaseKey: process.env.SUPABASE_KEY,
-
+ /* runtimeConfig: {
     public: {
+      supabaseUrl: process.env.NUXT_PUBLIC_SUPABASE_URL,
+      supabaseKey: process.env.NUXT_PUBLIC_SUPABASE_KEY,
       recaptchaSiteKey: process.env.RECAPTCHA_SITE_KEY,
     },
-  },
+  },*/
 });

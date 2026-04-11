@@ -2,7 +2,7 @@
 import { ref, onMounted, nextTick } from "vue";
 import { useSupabaseClient } from "#imports";
 import { usePermisos } from "~/composables/usePermisos";
-
+const supabase = useSupabaseClient();
 const router = useRouter();
 const strnombreusuario = ref("");
 const strpwd = ref("");
@@ -89,7 +89,7 @@ const login = async () => {
     const usuarioState = useState("usuario", () => null);
     usuarioState.value = usuario;
 
-    // 🔥 FIX: CARGAR PERMISOS
+    // FIX: CARGAR PERMISOS
     if (usuario.idperfil) {
       await cargarPermisos(usuario.idperfil);
     }
@@ -103,6 +103,7 @@ const login = async () => {
     console.error("Error en login:", err);
     alert("Error en el servidor");
   }
+  await refrescarPermisos();
 };
 </script>
 

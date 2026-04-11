@@ -12,7 +12,7 @@ definePageMeta({
 const supabase = useSupabaseClient();
 
 /* 🔐 PERMISOS GLOBAL */
-const { init, puedeConsultar, puedeEditar, usuario, cargarPermisos } =
+const { init, puedeConsultar, puedeEditar, usuario, cargarPermisos, refrescarPermisos } =
   usePermisos();
 
 /* DATA */
@@ -145,7 +145,7 @@ const guardar = async () => {
     return mostrarNotificacion("Seleccione un perfil", "error");
   }
 
-  // BORRAR ANTES DE INSERTAR
+  // 🔥 GUARDAR PRIMERO
   const { error: errorDelete } = await supabase
     .from("permisos_perfil")
     .delete()
@@ -160,19 +160,15 @@ const guardar = async () => {
     (p) =>
       p.idperfil &&
       p.idmodulo &&
-      (
-        p.agregar ||
+      (p.agregar ||
         p.editar ||
         p.eliminar ||
         p.consultar ||
         p.imprimir ||
-        p.bitacora
-      )
+        p.bitacora),
   );
 
   for (let p of permisosValidos) {
-    console.log("Guardando:", p);
-
     const { error } = await supabase.from("permisos_perfil").insert({
       idperfil: p.idperfil,
       idmodulo: p.idmodulo,
@@ -187,15 +183,15 @@ const guardar = async () => {
     if (error) console.error("Error INSERT:", error);
   }
 
-  /* 🔥 FIX IMPORTANTE */
-  await cargarPermisos(perfilSeleccionado.value);
+  // 🔥 REFRESH GLOBAL (IMPORTANTE)
+  await refrescarPermisos();
 
   if (process.client) {
     localStorage.removeItem("permisos");
   }
 
   if (usuario.value?.idperfil === perfilSeleccionado.value) {
-    await cargarPermisos(usuario.value.idperfil);
+    await refrescarPermisos();
   }
 
   mostrarNotificacion("Permisos guardados correctamente");
@@ -216,7 +212,7 @@ onMounted(async () => {
 
   await cargarPerfiles();
 });
-</script>
+</script>>
 
 <template>
   <div v-if="notificacion.mostrar" :class="['notificacion', notificacion.tipo]">
@@ -274,7 +270,7 @@ onMounted(async () => {
           <td>
             <input
               type="checkbox"
-              v-model="obtenerPermiso(perfilSeleccionado.value, m.id).agregar"
+              v-model="obtenerPermiso(perfilSeleccionado, m.id).agregar"
               :disabled="!puedeEditar(moduloActual?.id)"
               :style="{ accentColor: colorCheckbox }"
             />

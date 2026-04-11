@@ -1,17 +1,20 @@
 import { useSupabaseClient } from "#imports";
-import { computed } from "vue";
+import { computed, watch } from "vue";
 import { useRoute } from "vue-router";
-import { watch } from "vue";
 
 export const usePermisos = () => {
   const permisos = useState("permisos", () => []);
   const usuario = useState("usuario", () => null);
   const modulos = useState("modulos", () => []);
+
   const supabase = useSupabaseClient();
   const route = useRoute();
 
   let cargando = false;
 
+  /* ================================
+     WATCH USUARIO
+  ================================ */
   watch(usuario, async (nuevo) => {
     if (nuevo?.idperfil && !cargando) {
       cargando = true;
@@ -21,8 +24,8 @@ export const usePermisos = () => {
   });
 
   /* ================================
-      DETECTAR ADMIN (FIX REAL)
-     ================================ */
+     ADMIN
+  ================================ */
   const esAdmin = computed(() => {
     return (
       usuario.value?.bitadministrador === true ||
@@ -34,51 +37,16 @@ export const usePermisos = () => {
   });
 
   /* ================================
-      VALIDAR RUTA
-     ================================ */
-  const validarRuta = async (ruta) => {
-    if (ruta === "/dashboard") return true;
-
-    if (esAdmin.value) return true;
-
-    if (!ruta) return true;
-
-    const { data, error } = await supabase
-      .from("modulo")
-      .select("id")
-      .eq("ruta", ruta)
-      .maybeSingle();
-
-    if (error) {
-      console.error("Error validando ruta:", error);
-      return false;
-    }
-
-    if (!data) {
-      console.warn("⚠️ Ruta sin módulo:", ruta);
-      return true;
-    }
-
-    return puedeConsultar(data.id);
-  };
-
-  /* ================================
-     📦 CARGAR MODULOS
-     ================================ */
+     MODULOS
+  ================================ */
   const cargarTodosModulos = async () => {
-    const { data, error } = await supabase.from("modulo").select("*");
-
-    if (error) {
-      console.error("❌ Error cargando módulos:", error);
-      return;
-    }
-
+    const { data } = await supabase.from("modulo").select("*");
     modulos.value = data || [];
   };
 
   /* ================================
-     👤 USUARIO
-     ================================ */
+     USUARIO LOCAL
+  ================================ */
   const cargarUsuario = () => {
     if (process.client) {
       const usr = JSON.parse(localStorage.getItem("usuario"));
@@ -87,70 +55,57 @@ export const usePermisos = () => {
   };
 
   /* ================================
-     🔐 PERMISOS
-     ================================ 
-  const cargarPermisos = async (perfilId) => {
-    if (!perfilId) return;
+     PERMISOS BD
+  ================================ */
+  const cargarPermisos = async (idperfil) => {
+    if (!idperfil) return;
 
     const { data, error } = await supabase
       .from("permisos_perfil")
-      .select("*, modulo(*)")
-      .eq("idperfil", perfilId);
+      .select(`
+        idmodulo,
+        consultar,
+        agregar,
+        editar,
+        eliminar,
+        imprimir,
+        bitacora,
+        modulo (
+          id,
+          strnombremodulo,
+          ruta
+        )
+      `)
+      .eq("idperfil", idperfil);
 
     if (error) {
-      console.error("❌ Error cargando permisos:", error);
+      console.error("Error cargando permisos:", error);
       return;
     }
 
-    //permisos.value = data || [];
-permisos.value = [...(data || [])];
+    permisos.value = data || [];
+
     if (process.client) {
       localStorage.setItem("permisos", JSON.stringify(permisos.value));
+      localStorage.setItem("permisos_timestamp", Date.now());
     }
-    //console.log("Permisos cargados:", permisos.value);
-    console.log("Permisos BD:", JSON.stringify(data, null, 2));
-  };*/
-const cargarPermisos = async (idperfil) => {
-  if (!idperfil) return;
 
-  const { data, error } = await supabase
-    .from("permisos_perfil")
-    .select(`
-      idmodulo,
-      consultar,
-      agregar,
-      editar,
-      eliminar,
-      imprimir,
-      bitacora,
-      modulo (
-        id,
-        strnombremodulo,
-        ruta
-      )
-    `)
-    .eq("idperfil", idperfil);
+    console.log("PERMISOS DESDE BD:", data);
+  };
 
-  if (error) {
-    console.error("Error cargando permisos:", error);
-    return;
-  }
-
-  console.log("PERMISOS DESDE BD:", data);
-
-  permisos.value = data || [];
-
-  if (process.client) {
-    localStorage.setItem("permisos", JSON.stringify(permisos.value));
-  }
-};
   /* ================================
-     📦 MODULOS PARA NAVBAR
-     ================================ */
+     REFRESH GLOBAL (IMPORTANTE)
+  ================================ */
+  const refrescarPermisos = async () => {
+    if (!usuario.value?.idperfil) return;
+    await cargarPermisos(usuario.value.idperfil);
+  };
+
+  /* ================================
+     MODULOS PERMITIDOS
+  ================================ */
   const modulosPermitidos = computed(() => {
-    if (esAdmin.value) {
-      return modulos.value;
-    }
+    if (esAdmin.value) return modulos.value;
 
     return permisos.value
       .filter((p) => p.consultar === true || p.consultar === 1)
@@ -158,8 +113,8 @@ const cargarPermisos = async (idperfil) => {
   });
 
   /* ================================
-     🔐 VALIDACIONES
-     ================================ */
+     PERMISOS HELPERS
+  ================================ */
   const tienePermiso = (moduloId, tipo) => {
     if (esAdmin.value) return true;
 
@@ -169,61 +124,51 @@ const cargarPermisos = async (idperfil) => {
     });
   };
 
-  const puedeConsultar = (moduloId) => tienePermiso(moduloId, "consultar");
-  const puedeAgregar = (moduloId) => tienePermiso(moduloId, "agregar");
-  const puedeEditar = (moduloId) => tienePermiso(moduloId, "editar");
-  const puedeEliminar = (moduloId) => tienePermiso(moduloId, "eliminar");
-  const puedeImprimir = (moduloId) => tienePermiso(moduloId, "imprimir");
-  const puedeBitacora = (moduloId) => tienePermiso(moduloId, "bitacora");
+  const puedeConsultar = (id) => tienePermiso(id, "consultar");
+  const puedeEditar = (id) => tienePermiso(id, "editar");
+  const puedeEliminar = (id) => tienePermiso(id, "eliminar");
+  const puedeAgregar = (id) => tienePermiso(id, "agregar");
+  const puedeImprimir = (id) => tienePermiso(id, "imprimir");
+  const puedeBitacora = (id) => tienePermiso(id, "bitacora");
 
   /* ================================
-     NUEVO: MODULO ACTUAL POR RUTA
-     ================================ */
+     MODULO ACTUAL
+  ================================ */
   const moduloActual = computed(() => {
     return modulos.value.find((m) => m.ruta === route.path);
   });
 
   const puedeConsultarRuta = computed(() => {
     if (esAdmin.value) return true;
-
     if (!moduloActual.value) return true;
-
     return puedeConsultar(moduloActual.value.id);
   });
 
   /* ================================
-     INIT
-     ================================ */
+     INIT (CORREGIDO)
+  ================================ */
   const init = async () => {
     cargarUsuario();
 
-    console.log("Usuario cargado:", usuario.value);
-    console.log("Es admin:", esAdmin.value);
-
-    // SIEMPRE cargar módulos
     await cargarTodosModulos();
 
-    // SI ES ADMIN → NO NECESITA PERMISOS
     if (esAdmin.value) {
       permisos.value = [];
       return;
     }
 
-    // LOCAL STORAGE
-    /*if (process.client) {
-      const permisosStorage = JSON.parse(localStorage.getItem("permisos"));
-      if (permisosStorage) {
-        permisos.value = permisosStorage;
-      }
-    }*/
-    if (usuario.value?.idperfil) {
-      await cargarPermisos(usuario.value.idperfil);
-    }
+    if (!usuario.value?.idperfil) return;
 
-    /* BD
-    if (usuario.value?.idperfil) {
-      await cargarPermisos(usuario.value.idperfil);
-    }*/
+    if (process.client) {
+      const lastUpdate = localStorage.getItem("permisos_timestamp");
+
+      if (!lastUpdate || Date.now() - lastUpdate > 30000) {
+        await cargarPermisos(usuario.value.idperfil);
+      } else {
+        const cache = localStorage.getItem("permisos");
+        if (cache) permisos.value = JSON.parse(cache);
+      }
+    }
   };
 
   return {
@@ -231,6 +176,7 @@ const cargarPermisos = async (idperfil) => {
     permisos,
     modulos,
 
+    refrescarPermisos,
     cargarPermisos,
     modulosPermitidos,
 
@@ -240,12 +186,9 @@ const cargarPermisos = async (idperfil) => {
     puedeEliminar,
     puedeImprimir,
     puedeBitacora,
-    validarRuta,
-
-    // NUEVOS
-    moduloActual,
     puedeConsultarRuta,
 
+    moduloActual,
     init,
   };
-};     
+};
