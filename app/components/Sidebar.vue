@@ -1,7 +1,7 @@
 <script setup>
 const { modulosPermitidos } = usePermisos();
-
-const modulos = computed(() => modulosPermitidos());
+const modulos = computed(() => modulosPermitidos.value);
+//const modulos = computed(() => modulosPermitidos());
 </script>
 
 <template>

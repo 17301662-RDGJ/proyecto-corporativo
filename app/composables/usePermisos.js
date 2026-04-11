@@ -71,8 +71,10 @@ export const usePermisos = () => {
         bitacora,
         modulo (
           id,
-          strnombremodulo,
-          ruta
+  strnombremodulo,
+  ruta,
+  parent_id,
+  tipo
         )
       `)
       .eq("idperfil", idperfil);
@@ -102,15 +104,25 @@ export const usePermisos = () => {
 
   /* ================================
      MODULOS PERMITIDOS
-  ================================ */
+  ================================ 
   const modulosPermitidos = computed(() => {
     if (esAdmin.value) return modulos.value;
 
     return permisos.value
       .filter((p) => p.consultar === true || p.consultar === 1)
       .map((p) => p.modulo);
-  });
+  });*/
+const modulosPermitidos = computed(() => {
+  if (esAdmin.value) return modulos.value;
 
+  return modulos.value.filter((m) =>
+    permisos.value.some(
+      (p) =>
+        p.idmodulo?.toString() === m.id?.toString() &&
+        (p.consultar === true || p.consultar === 1)
+    )
+  );
+});
   /* ================================
      PERMISOS HELPERS
   ================================ */
