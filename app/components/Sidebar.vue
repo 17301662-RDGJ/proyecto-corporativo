@@ -1,6 +1,10 @@
 <script setup>
 const { modulosPermitidos } = usePermisos();
 const modulos = computed(() => modulosPermitidos.value);
+
+import { usePermisos } from "~/composables/usePermisos";
+
+//const { modulos } = usePermisos();
 //const modulos = computed(() => modulosPermitidos());
 </script>
 

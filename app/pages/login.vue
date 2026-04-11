@@ -3,7 +3,8 @@ import { ref, onMounted, nextTick } from "vue";
 import { useSupabaseClient } from "#imports";
 import { usePermisos } from "~/composables/usePermisos";
 
-const supabase = useSupabaseClient();
+//const { modulos } = usePermisos();
+//const supabase = useSupabaseClient();
 const router = useRouter();
 const strnombreusuario = ref("");
 const strpwd = ref("");
@@ -11,7 +12,8 @@ const captchaToken = ref("");
 
 const config = useRuntimeConfig();
 //const { cargarPermisos } = usePermisos();
-const { cargarPermisos, refrescarPermisos, init } = usePermisos();
+
+const { modulos, cargarPermisos, refrescarPermisos, init } = usePermisos();
 console.log("RECAPTCHA KEY:", config.public.recaptchaSiteKey);
 
 // --------------------------
@@ -94,6 +96,7 @@ const login = async () => {
     // SOLO ESTO (IMPORTANTE)
     await init();
     await nextTick();
+     console.log("MODULOS:", modulos.value);
     await navigateTo("/dashboard");
 
   } catch (err) {
@@ -101,7 +104,6 @@ const login = async () => {
     alert("Error en el servidor");
   }
 
-  console.log("MODULOS:", modulos.value);
 };
 </script>
 

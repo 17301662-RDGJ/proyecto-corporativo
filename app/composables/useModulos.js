@@ -1,6 +1,8 @@
 import { ref } from "vue";
 import { useSupabaseClient } from "#imports";
+import { usePermisos } from "~/composables/usePermisos";
 
+const { modulos } = usePermisos();
 export const useModulos = () => {
 
 const supabase = useSupabaseClient();
