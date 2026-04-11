@@ -20,11 +20,11 @@ export default defineNuxtConfig({
     redirect: false,
   },
 
- /* runtimeConfig: {
+runtimeConfig: {
     public: {
-      supabaseUrl: process.env.NUXT_PUBLIC_SUPABASE_URL,
-      supabaseKey: process.env.NUXT_PUBLIC_SUPABASE_KEY,
-      recaptchaSiteKey: process.env.RECAPTCHA_SITE_KEY,
+     // supabaseUrl: process.env.NUXT_PUBLIC_SUPABASE_URL,
+      //supabaseKey: process.env.NUXT_PUBLIC_SUPABASE_KEY,
+      recaptchaSiteKey: process.env.NUXT_PUBLIC_RECAPTCHA_SITE_KEY,
     },
-  },*/
+  },
 });
