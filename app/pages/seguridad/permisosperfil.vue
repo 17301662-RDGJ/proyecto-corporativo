@@ -147,63 +147,40 @@ const obtenerPermiso = (perfilId, moduloId) => {
 };
 
 /* GUARDAR */
-const guardar = async () => {
-  if (!perfilSeleccionado.value) {
-    return mostrarNotificacion("Seleccione un perfil", "error");
+const guardarPermisos = async () => {
+  try {
+    const permisosAGuardar = [];
+
+    modulos.value.forEach((modulo) => {
+      permisosAGuardar.push({
+        idperfil: perfilSeleccionado.value,
+        idmodulo: modulo.id,
+        ver: modulo.ver || false,
+        crear: modulo.crear || false,
+        editar: modulo.editar || false,
+        eliminar: modulo.eliminar || false,
+      });
+    });
+
+    console.log("PERMISOS A GUARDAR:", permisosAGuardar);
+
+    const { error } = await client
+      .from("permisos_perfil")
+      .upsert(permisosAGuardar, {
+        onConflict: ["idperfil", "idmodulo"],
+      });
+
+    if (error) {
+      console.error("ERROR AL GUARDAR:", error);
+      mostrarNotificacion("Error al guardar permisos", "error");
+      return;
+    }
+
+    mostrarNotificacion("Permisos guardados correctamente");
+  } catch (err) {
+    console.error(err);
   }
-
-  // BORRAR PERMISOS ANTERIORES
-  const { error: errorDelete } = await supabase
-    .from("permisos_perfil")
-    .delete()
-    .eq("idperfil", perfilSeleccionado.value);
-
-  if (errorDelete) {
-    console.error("Error DELETE:", errorDelete);
-    return;
-  }
-
-  // FILTRAR SOLO LOS QUE TIENEN AL MENOS UN PERMISO
-  const permisosValidos = permisos.value.filter(
-    (p) =>
-      p.idperfil &&
-      p.idmodulo &&
-      (p.agregar ||
-        p.editar ||
-        p.eliminar ||
-        p.consultar ||
-        p.imprimir ||
-        p.bitacora)
-  );
-
-  if (!permisosValidos.length) {
-    mostrarNotificacion("Sin permisos para guardar");
-    return;
-  }
-
-  // INSERT MASIVO (EVITA DUPLICADOS)
-  const { error: errorInsert } = await supabase
-    .from("permisos_perfil")
-    .insert(permisosValidos);
-
-  if (errorInsert) {
-    console.error("Error INSERT:", errorInsert);
-    mostrarNotificacion("Error al guardar", "error");
-    return;
-  }
-
-  // REFRESCAR PERMISOS
-  await refrescarPermisos();
-
-  if (process.client) {
-    localStorage.removeItem("permisos");
-  }
-
-  if (usuario.value?.idperfil === perfilSeleccionado.value) {
-    await refrescarPermisos();
-  }
-
-  mostrarNotificacion("Permisos guardados correctamente");
+  await cargarPermisos();
 };
 
 /* INIT */
