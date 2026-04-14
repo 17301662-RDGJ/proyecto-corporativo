@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted, computed } from "vue";
 import { usePermisos } from "~/composables/usePermisos";
+const { cargarPermisos, puedeConsultar, moduloActual } = usePermisos();
 
 definePageMeta({
   middleware: ["auth", "permiso"],
@@ -9,7 +10,6 @@ definePageMeta({
 const fechaHora = ref("");
 const usuario = ref(null);
 
-const { cargarPermisos } = usePermisos();
 
 /* SALUDO DINÁMICO */
 const saludo = computed(() => {
@@ -19,10 +19,10 @@ const saludo = computed(() => {
   return "Buenas noches";
 });
 
-/* ROL */
 const rol = computed(() => {
-  if (!usuario.value) return "";
-  return usuario.value.bitadministrador ? "Administrador" : "Usuario";
+  return usuario.value?.bitadministrador
+    ? "Administrador"
+    : "Usuario";
 });
 
 onMounted(async () => {
@@ -42,20 +42,19 @@ onMounted(async () => {
   actualizarHora();
   setInterval(actualizarHora, 1000);
 });
+
 </script>
 
 <template>
   <div class="dashboard">
     <div class="content">
       <div class="welcome-card">
-        <!-- HEADER USUARIO PRO -->
+
+       
         <div class="user-header" v-if="usuario">
           <div class="avatar-container">
             <img v-if="usuario.strfoto" :src="usuario.strfoto" class="avatar" />
           </div>
-<div v-if="puedeConsultar(moduloActual?.id)">
-  Bienvenido
-</div>
           <div class="user-text">
             <p class="saludo">
               {{ saludo }},
