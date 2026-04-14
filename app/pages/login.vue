@@ -3,8 +3,7 @@ import { ref, onMounted, nextTick } from "vue";
 import { useSupabaseClient } from "#imports";
 import { usePermisos } from "~/composables/usePermisos";
 
-//const { modulos } = usePermisos();
-//const supabase = useSupabaseClient();
+
 const router = useRouter();
 const strnombreusuario = ref("");
 const strpwd = ref("");
@@ -16,9 +15,8 @@ const config = useRuntimeConfig();
 const { modulos, cargarPermisos, refrescarPermisos, init } = usePermisos();
 console.log("RECAPTCHA KEY:", config.public.recaptchaSiteKey);
 
-// --------------------------
+
 // Cargar script reCAPTCHA
-// --------------------------
 const loadRecaptcha = () => {
   return new Promise((resolve) => {
     if (window.grecaptcha) return resolve(window.grecaptcha);
@@ -32,17 +30,14 @@ const loadRecaptcha = () => {
   });
 };
 
-// --------------------------
 // Callback captcha
-// --------------------------
+
 const onCaptchaVerified = (token) => {
   captchaToken.value = token;
   console.log("Captcha verificado:", token);
 };
 
-// --------------------------
 // Montaje
-// --------------------------
 onMounted(async () => {
   const grecaptcha = await loadRecaptcha();
 
@@ -52,9 +47,8 @@ onMounted(async () => {
   });
 });
 
-// --------------------------
 // LOGIN
-// --------------------------
+
 const login = async () => {
   if (strnombreusuario.value.trim() === "" || strpwd.value.trim() === "") {
     alert("Todos los campos son obligatorios");

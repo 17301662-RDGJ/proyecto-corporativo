@@ -12,21 +12,21 @@ export const usePermisos = () => {
   let cargando = false;
 
   /*  WATCH USUARIO
-
-  watch(usuario, async (nuevo) => {
-    if (nuevo?.idperfil && !cargando) {
-      cargando = true;
-      await cargarPermisos(nuevo.idperfil);
-      cargando = false;
-    }
-  });*/
 watch(usuario, async (nuevo) => {
   if (nuevo?.idperfil && !cargando) {
     cargando = true;
     await cargarPermisos(nuevo.idperfil);
     cargando = false;
   }
-}, { deep: true });
+}, { deep: true });*/
+
+watch(() => usuario.value?.idperfil, async (idperfil) => {
+  if (idperfil && !cargando) {
+    cargando = true;
+    await cargarPermisos(idperfil);
+    cargando = false;
+  }
+});
 
   /*ADMIN*/
   const esAdmin = computed(() => {
@@ -99,25 +99,7 @@ watch(usuario, async (nuevo) => {
     await cargarPermisos(usuario.value.idperfil);
   };
 
-  /* MODULOS PERMITIDOS
-  const modulosPermitidos = computed(() => {
-    if (esAdmin.value) return modulos.value;
-
-    return permisos.value
-      .filter((p) => p.consultar === true || p.consultar === 1)
-      .map((p) => p.modulo);
-  });
-const modulosPermitidos = computed(() => {
-  if (esAdmin.value) return modulos.value;
-
-  return modulos.value.filter((m) =>
-    permisos.value.some(
-      (p) =>
-        p.idmodulo?.toString() === m.id?.toString() &&
-        (p.consultar === true || p.consultar === 1)
-    )
-  );
-});*/
+  /* MODULOS PERMITIDOS*/
 const modulosPermitidos = computed(() => {
   if (esAdmin.value) return modulos.value;
 
@@ -144,10 +126,7 @@ const modulosPermitidos = computed(() => {
   const puedeImprimir = (id) => tienePermiso(id, "imprimir");
   const puedeBitacora = (id) => tienePermiso(id, "bitacora");
 
-  /*MODULO ACTUAL
-  const moduloActual = computed(() => {
-    return modulos.value.find((m) => m.ruta === route.path);
-  });*/
+  /*MODULO ACTUAL*/
 const moduloActual = computed(() => {
   //let modulo = modulos.value.find((m) => m.ruta === route.path);
 let modulo = modulos.value.find((m) => {
@@ -189,17 +168,17 @@ let modulo = modulos.value.find((m) => {
     if (!usuario.value?.idperfil) return;
 
     if (process.client) {
-      const lastUpdate = localStorage.getItem("permisos_timestamp");
-
+      /*const lastUpdate = localStorage.getItem("permisos_timestamp");
       if (!lastUpdate || Date.now() - lastUpdate > 30000) {
         await cargarPermisos(usuario.value.idperfil);
       } else {
         const cache = localStorage.getItem("permisos");
         if (cache) permisos.value = JSON.parse(cache);
-      }
+      }*/
      /* if (usuario.value?.idperfil) {
   await cargarPermisos(usuario.value.idperfil);
 }*/
+await cargarPermisos(usuario.value.idperfil);
     }
   };
 

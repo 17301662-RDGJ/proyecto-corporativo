@@ -186,6 +186,7 @@ const guardarPermisos = async () => {
   } catch (err) {
     console.error(err);
   }
+  await refrescarPermisos();
 };
 
 /* INIT */
