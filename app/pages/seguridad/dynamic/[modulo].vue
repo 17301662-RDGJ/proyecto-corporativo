@@ -114,12 +114,15 @@ const exportarExcel = () => {
 };
 
 const cargarModuloId = () => {
-  const rutaActual = route.path;
+  const nombre = route.params.modulo?.toLowerCase();
 
-  const modulo = modulos.value.find((m) => m.ruta && rutaActual === m.ruta);
+  const modulo = modulos.value.find(
+    (m) =>
+      m.strnombremodulo?.toLowerCase() === nombre
+  );
 
   if (!modulo) {
-    console.warn("⚠️ Módulo no encontrado por ruta:", rutaActual);
+    console.warn("⚠️ Módulo no encontrado:", nombre);
     moduloId.value = null;
     return;
   }

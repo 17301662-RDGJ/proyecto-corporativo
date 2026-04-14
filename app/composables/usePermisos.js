@@ -89,7 +89,6 @@ watch(() => usuario.value?.idperfil, async (idperfil) => {
       localStorage.setItem("permisos", JSON.stringify(permisos.value));
       localStorage.setItem("permisos_timestamp", Date.now());
     }
-
     console.log("PERMISOS DESDE BD:", data);
   };
 

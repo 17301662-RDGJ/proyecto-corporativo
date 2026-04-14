@@ -166,8 +166,6 @@ const guardarPermisos = async () => {
       eliminados: p.eliminados || false,
     }));
 
-    console.log("PERMISOS A GUARDAR:", permisosAGuardar);
-
     const { error } = await supabase
       .from("permisos_perfil")
       .upsert(permisosAGuardar, {
@@ -182,17 +180,18 @@ const guardarPermisos = async () => {
 
     mostrarNotificacion("Permisos guardados correctamente");
 
-    await cargarPermisos();
+    // RECARGA GLOBAL CORRECTA
+    await refrescarPermisos();
+
   } catch (err) {
     console.error(err);
   }
-  await refrescarPermisos();
 };
 
 /* INIT */
 onMounted(async () => {
   await init();
-
+await refrescarPermisos();
   await cargarModulos();
 
   if (!moduloActual.value || !puedeConsultar(moduloActual.value.id)) {
@@ -201,9 +200,8 @@ onMounted(async () => {
       statusMessage: "No tiene permisos",
     });
   }
-
-  await cargarPerfiles();
 });
+
 </script>>
 
 <template>
