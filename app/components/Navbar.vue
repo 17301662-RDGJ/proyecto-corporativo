@@ -2,14 +2,24 @@
 import { ref, onMounted, computed } from "vue";
 import { usePermisos } from "~/composables/usePermisos";
 import { watch } from "vue";
-const { init, puedeConsultar, usuario, modulos } = usePermisos();
+
 
 const cargado = ref(false);
 
-const { permisos, refrescarPermisos } = usePermisos();
+const {
+  init,
+  puedeConsultar,
+  usuario,
+  modulos,
+  permisos,
+  refrescarPermisos,
+  modulosPermitidos
+} = usePermisos();
 
-watch(usuario, async () => {
-  await refrescarPermisos();
+watch(usuario, async (nuevo) => {
+  if (nuevo?.idperfil) {
+    await refrescarPermisos();
+  }
 });
 
 
@@ -42,7 +52,7 @@ const modulosPrincipales = computed(() => {
     return puedeConsultar(m.id);
   });
 });*/
-const { modulosPermitidos } = usePermisos();
+//const { modulosPermitidos } = usePermisos();
 
 const modulosPrincipales = computed(() => {
   if (!modulosPermitidos.value.length) return [];
