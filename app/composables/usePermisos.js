@@ -89,33 +89,39 @@ export const usePermisos = () => {
     await cargarPermisos(usuario.value.idperfil);
   };
 
-  /* ✅ MODULOS PERMITIDOS (FIX REAL) */
-  const modulosPermitidos = computed(() => {
-    if (esAdmin.value) return modulos.value;
+  /* MODULOS PERMITIDOS (FIX REAL) */
+const modulosPermitidos = computed(() => {
+  if (esAdmin.value) return modulos.value;
 
-    const idsPermitidos = permisos.value
-      .filter(p =>
-        p.consultar === true ||
-        p.consultar === 1 ||
-        p.consultar === "true"
-      )
-      .map(p => p.idmodulo?.toString());
+  const idsPermitidos = permisos.value
+    .filter(p =>
+      p.consultar === true ||
+      p.consultar === 1 ||
+      p.consultar === "true"
+    )
+    .map(p => p.modulo?.id?.toString()) // 🔥 AQUÍ EL FIX REAL
+    .filter(Boolean);
 
-    return modulos.value.filter(m =>
-      idsPermitidos.includes(m.id?.toString())
-    );
-  });
+  return modulos.value.filter(m =>
+    idsPermitidos.includes(m.id?.toString())
+  );
+});
 
   /*PERMISOS HELPERS*/
   const tienePermiso = (moduloId, tipo) => {
-    if (esAdmin.value) return true;
+  if (esAdmin.value) return true;
 
-    return permisos.value.some((p) => {
-      if (p.idmodulo?.toString() !== moduloId?.toString()) return false;
-      return p[tipo] === true || p[tipo] === 1 || p[tipo] === "true";
-    });
-  };
+  return permisos.value.some((p) => {
+    const id = p.modulo?.id || p.idmodulo; // 🔥 FIX
+    if (id?.toString() !== moduloId?.toString()) return false;
 
+    return (
+      p[tipo] === true ||
+      p[tipo] === 1 ||
+      p[tipo] === "true"
+    );
+  });
+};
   const puedeConsultar = (id) => tienePermiso(id, "consultar");
   const puedeEditar = (id) => tienePermiso(id, "editar");
   const puedeEliminar = (id) => tienePermiso(id, "eliminar");
