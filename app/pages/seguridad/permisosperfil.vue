@@ -149,22 +149,26 @@ const obtenerPermiso = (perfilId, moduloId) => {
 /* GUARDAR */
 const guardarPermisos = async () => {
   try {
-    const permisosAGuardar = [];
+    if (!perfilSeleccionado.value) {
+      mostrarNotificacion("Seleccione un perfil", "error");
+      return;
+    }
 
-    modulos.value.forEach((modulo) => {
-      permisosAGuardar.push({
-        idperfil: perfilSeleccionado.value,
-        idmodulo: modulo.id,
-        ver: modulo.ver || false,
-        crear: modulo.crear || false,
-        editar: modulo.editar || false,
-        eliminar: modulo.eliminar || false,
-      });
-    });
+    const permisosAGuardar = permisos.value.map((p) => ({
+      idperfil: p.idperfil,
+      idmodulo: p.idmodulo,
+      agregar: p.agregar || false,
+      editar: p.editar || false,
+      eliminar: p.eliminar || false,
+      consultar: p.consultar || false,
+      imprimir: p.imprimir || false,
+      bitacora: p.bitacora || false,
+      eliminados: p.eliminados || false,
+    }));
 
     console.log("PERMISOS A GUARDAR:", permisosAGuardar);
 
-    const { error } = await client
+    const { error } = await supabase
       .from("permisos_perfil")
       .upsert(permisosAGuardar, {
         onConflict: ["idperfil", "idmodulo"],
@@ -177,10 +181,11 @@ const guardarPermisos = async () => {
     }
 
     mostrarNotificacion("Permisos guardados correctamente");
+
+    await cargarPermisos();
   } catch (err) {
     console.error(err);
   }
-  await cargarPermisos();
 };
 
 /* INIT */
@@ -325,7 +330,7 @@ onMounted(async () => {
     <div class="acciones">
       <button
         class="guardar"
-        @click="guardar"
+        @click="guardarPermisos"
         v-if="moduloActual && puedeEditar(moduloActual.id)"
       >
         Guardar
