@@ -1,11 +1,9 @@
 <script setup>
-const { modulosPermitidos } = usePermisos();
-const modulos = computed(() => modulosPermitidos.value);
-
+import { computed } from "vue";
 import { usePermisos } from "~/composables/usePermisos";
 
-//const { modulos } = usePermisos();
-//const modulos = computed(() => modulosPermitidos());
+const { modulosPermitidos } = usePermisos();
+const modulos = computed(() => modulosPermitidos.value);
 </script>
 
 <template>
@@ -16,7 +14,7 @@ import { usePermisos } from "~/composables/usePermisos";
       <NuxtLink
         v-for="m in modulos"
         :key="m.id"
-        :to="`/${m.strnombremodulo.toLowerCase()}`"
+        :to="m.ruta"
       >
         {{ m.strnombremodulo }}
       </NuxtLink>

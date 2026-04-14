@@ -9,25 +9,26 @@ export const usePermisos = () => {
   const modulos = useState("modulos", () => []);
   const supabase = useSupabaseClient();
   const route = useRoute();
-
   let cargando = false;
 
+  /*  WATCH USUARIO
 
-  
-  /* ================================
-     WATCH USUARIO
-  ================================ */
   watch(usuario, async (nuevo) => {
     if (nuevo?.idperfil && !cargando) {
       cargando = true;
       await cargarPermisos(nuevo.idperfil);
       cargando = false;
     }
-  });
+  });*/
+watch(usuario, async (nuevo) => {
+  if (nuevo?.idperfil && !cargando) {
+    cargando = true;
+    await cargarPermisos(nuevo.idperfil);
+    cargando = false;
+  }
+}, { deep: true });
 
-  /* ================================
-     ADMIN
-  ================================ */
+  /*ADMIN*/
   const esAdmin = computed(() => {
     return (
       usuario.value?.bitadministrador === true ||
@@ -38,17 +39,13 @@ export const usePermisos = () => {
     );
   });
 
-  /* ================================
-     MODULOS
-  ================================ */
+  /*MODULOS*/
   const cargarTodosModulos = async () => {
     const { data } = await supabase.from("modulo").select("*");
     modulos.value = data || [];
   };
 
-  /* ================================
-     USUARIO LOCAL
-  ================================ */
+  /*USUARIO LOCAL*/
   const cargarUsuario = () => {
     if (process.client) {
       const usr = JSON.parse(localStorage.getItem("usuario"));
@@ -56,9 +53,7 @@ export const usePermisos = () => {
     }
   };
 
-  /* ================================
-     PERMISOS BD
-  ================================ */
+  /*PERMISOS BD*/
   const cargarPermisos = async (idperfil) => {
     if (!idperfil) return;
 
@@ -72,6 +67,7 @@ export const usePermisos = () => {
         eliminar,
         imprimir,
         bitacora,
+        eliminados,
         modulo (
           id,
   strnombremodulo,
@@ -97,17 +93,13 @@ export const usePermisos = () => {
     console.log("PERMISOS DESDE BD:", data);
   };
 
-  /* ================================
-     REFRESH GLOBAL (IMPORTANTE)
-  ================================ */
+  /*REFRESH GLOBAL (IMPORTANTE)*/
   const refrescarPermisos = async () => {
     if (!usuario.value?.idperfil) return;
     await cargarPermisos(usuario.value.idperfil);
   };
 
-  /* ================================
-     MODULOS PERMITIDOS
-  ================================ 
+  /* MODULOS PERMITIDOS
   const modulosPermitidos = computed(() => {
     if (esAdmin.value) return modulos.value;
 
@@ -134,15 +126,14 @@ const modulosPermitidos = computed(() => {
     .map(p => p.modulo)
     .filter(Boolean);
 });
-  /* ================================
-     PERMISOS HELPERS
-  ================================ */
+
+  /*PERMISOS HELPERS*/
   const tienePermiso = (moduloId, tipo) => {
     if (esAdmin.value) return true;
 
     return permisos.value.some((p) => {
       if (p.idmodulo?.toString() !== moduloId?.toString()) return false;
-      return p[tipo] === true || p[tipo] === 1;
+      return p[tipo] === true || p[tipo] === 1 || p[tipo] === "true";
     });
   };
 
@@ -153,9 +144,7 @@ const modulosPermitidos = computed(() => {
   const puedeImprimir = (id) => tienePermiso(id, "imprimir");
   const puedeBitacora = (id) => tienePermiso(id, "bitacora");
 
-  /* ================================
-     MODULO ACTUAL
-  ================================ 
+  /*MODULO ACTUAL
   const moduloActual = computed(() => {
     return modulos.value.find((m) => m.ruta === route.path);
   });*/
@@ -167,7 +156,8 @@ let modulo = modulos.value.find((m) => {
   const cleanRuta = m.ruta.replace(/\/$/, "");
   const cleanPath = route.path.replace(/\/$/, "");
 
-  return cleanPath.startsWith(cleanRuta);
+  return cleanPath === cleanRuta || cleanPath.startsWith(cleanRuta + "/");
+ // return cleanPath.startsWith(cleanRuta);
 });
   // FIX: fallback si no encuentra
   if (!modulo && modulos.value.length > 0) {
@@ -185,9 +175,7 @@ let modulo = modulos.value.find((m) => {
     return puedeConsultar(moduloActual.value.id);
   });
 
-  /* ================================
-     INIT
-  ================================ */
+  /*INIT*/
   const init = async () => {
     cargarUsuario();
 
@@ -209,9 +197,9 @@ let modulo = modulos.value.find((m) => {
         const cache = localStorage.getItem("permisos");
         if (cache) permisos.value = JSON.parse(cache);
       }
-      if (usuario.value?.idperfil) {
+     /* if (usuario.value?.idperfil) {
   await cargarPermisos(usuario.value.idperfil);
-}
+}*/
     }
   };
 
