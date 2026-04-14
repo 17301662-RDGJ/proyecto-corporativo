@@ -132,58 +132,21 @@ const obtenerPermiso = (perfilId, moduloId) => {
       imprimir: false,
       bitacora: false,
     };
-    permisos.value.push(permiso);
+
+    //EVITAR DUPLICADOS EN MEMORIA
+    const yaExiste = permisos.value.some(
+      (p) => p.idperfil == perfilId && p.idmodulo == moduloId
+    );
+
+    if (!yaExiste) {
+      permisos.value.push(permiso);
+    }
   }
 
   return permiso;
 };
 
 /* GUARDAR */
-const guardar = async () => {
-  if (!perfilSeleccionado.value) {
-    return mostrarNotificacion("Seleccione un perfil", "error");
-  }
-
-  // GUARDAR PRIMERO
- /* const { error: errorDelete } = await supabase
-    .from("permisos_perfil")
-    .delete()
-    .eq("idperfil", perfilSeleccionado.value);
-
-  if (errorDelete) {
-    console.error("Error DELETE:", errorDelete);
-    return;
-  }
-
-  const permisosValidos = permisos.value.filter(
-    (p) =>
-      p.idperfil &&
-      p.idmodulo &&
-      (p.agregar ||
-        p.editar ||
-        p.eliminar ||
-        p.consultar ||
-        p.imprimir ||
-        p.bitacora),
-  );
-
-  for (let p of permisosValidos) {
-    const { error } = await supabase
-  .from("permisos_perfil")
-  .upsert({
-    idperfil: perfilSeleccionado,
-    idmodulo: modulo.id,
-    agregar: modulo.agregar,
-    editar: modulo.editar,
-    eliminar: modulo.eliminar,
-    consultar: modulo.consultar,
-    imprimir: modulo.imprimir,
-    bitacora: modulo.bitacora
-  });
-
-    if (error) console.error("Error INSERT:", error);
-  }
-*/
 const guardar = async () => {
   if (!perfilSeleccionado.value) {
     return mostrarNotificacion("Seleccione un perfil", "error");
@@ -213,38 +176,23 @@ const guardar = async () => {
         p.bitacora)
   );
 
-  // 💾 INSERT CORRECTO
-  for (let p of permisosValidos) {
-    const { error } = await supabase
-      .from("permisos_perfil")
-      .insert({
-        idperfil: p.idperfil,
-        idmodulo: p.idmodulo,
-        agregar: p.agregar,
-        editar: p.editar,
-        eliminar: p.eliminar,
-        consultar: p.consultar,
-        imprimir: p.imprimir,
-        bitacora: p.bitacora
-      });
-
-    if (error) console.error("Error INSERT:", error);
+  if (!permisosValidos.length) {
+    mostrarNotificacion("Sin permisos para guardar");
+    return;
   }
 
-  //  REFRESCAR PERMISOS
-  await refrescarPermisos();
+  // INSERT MASIVO (EVITA DUPLICADOS)
+  const { error: errorInsert } = await supabase
+    .from("permisos_perfil")
+    .insert(permisosValidos);
 
-  if (process.client) {
-    localStorage.removeItem("permisos");
+  if (errorInsert) {
+    console.error("Error INSERT:", errorInsert);
+    mostrarNotificacion("Error al guardar", "error");
+    return;
   }
 
-  if (usuario.value?.idperfil === perfilSeleccionado.value) {
-    await refrescarPermisos();
-  }
-
-  mostrarNotificacion("Permisos guardados correctamente");
-};
-  // REFRESH GLOBAL (IMPORTANTE)
+  // REFRESCAR PERMISOS
   await refrescarPermisos();
 
   if (process.client) {

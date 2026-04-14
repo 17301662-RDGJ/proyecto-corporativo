@@ -330,9 +330,26 @@ const eliminar = async (id) => {
 
   if (!result.isConfirmed) return;
 
-  await client.from("modulo").delete().eq("id", id);
-  mostrarNotificacion("Eliminado");
-  obtenerModulos();
+  // BORRAR RELACIONES PRIMERO
+  await client
+    .from("permisos_perfil")
+    .delete()
+    .eq("idmodulo", id); // <-- ajusta el nombre del campo
+
+  // AHORA SÍ BORRAR MÓDULO
+  const { error } = await client
+    .from("modulo")
+    .delete()
+    .eq("id", id);
+
+  if (error) {
+    console.log("ERROR ELIMINAR:", error);
+    mostrarNotificacion(error.message || "No se pudo eliminar", "error");
+    return;
+  }
+
+  mostrarNotificacion("Eliminado correctamente");
+  await obtenerModulos();
 };
 
 /* INIT */
@@ -345,7 +362,6 @@ onMounted(async () => {
     window.location.href = "/dashboard";
     return;
   }
-
   await obtenerModulos();
 });
 </script>
