@@ -191,7 +191,9 @@ const guardarPermisos = async () => {
 /* INIT */
 onMounted(async () => {
   await init();
+  
 await refrescarPermisos();
+await cargarPerfiles();
   await cargarModulos();
 
   if (!moduloActual.value || !puedeConsultar(moduloActual.value.id)) {
