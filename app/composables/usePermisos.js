@@ -2,7 +2,6 @@ import { useSupabaseClient } from "#imports";
 import { computed, watch } from "vue";
 import { useRoute } from "vue-router";
 
-//const { modulos } = usePermisos();
 export const usePermisos = () => {
   const permisos = useState("permisos", () => []);
   const usuario = useState("usuario", () => null);
@@ -11,22 +10,13 @@ export const usePermisos = () => {
   const route = useRoute();
   let cargando = false;
 
-  /*  WATCH USUARIO
-watch(usuario, async (nuevo) => {
-  if (nuevo?.idperfil && !cargando) {
-    cargando = true;
-    await cargarPermisos(nuevo.idperfil);
-    cargando = false;
-  }
-}, { deep: true });*/
-
-watch(() => usuario.value?.idperfil, async (idperfil) => {
-  if (idperfil && !cargando) {
-    cargando = true;
-    await cargarPermisos(idperfil);
-    cargando = false;
-  }
-});
+  watch(() => usuario.value?.idperfil, async (idperfil) => {
+    if (idperfil && !cargando) {
+      cargando = true;
+      await cargarPermisos(idperfil);
+      cargando = false;
+    }
+  });
 
   /*ADMIN*/
   const esAdmin = computed(() => {
@@ -70,10 +60,10 @@ watch(() => usuario.value?.idperfil, async (idperfil) => {
         eliminados,
         modulo (
           id,
-  strnombremodulo,
-  ruta,
-  parent_id,
-  tipo
+          strnombremodulo,
+          ruta,
+          parent_id,
+          tipo
         )
       `)
       .eq("idperfil", idperfil);
@@ -89,24 +79,32 @@ watch(() => usuario.value?.idperfil, async (idperfil) => {
       localStorage.setItem("permisos", JSON.stringify(permisos.value));
       localStorage.setItem("permisos_timestamp", Date.now());
     }
+
     console.log("PERMISOS DESDE BD:", data);
   };
 
-  /*REFRESH GLOBAL (IMPORTANTE)*/
+  /*REFRESH GLOBAL*/
   const refrescarPermisos = async () => {
     if (!usuario.value?.idperfil) return;
     await cargarPermisos(usuario.value.idperfil);
   };
 
-  /* MODULOS PERMITIDOS*/
-const modulosPermitidos = computed(() => {
-  if (esAdmin.value) return modulos.value;
+  /* ✅ MODULOS PERMITIDOS (FIX REAL) */
+  const modulosPermitidos = computed(() => {
+    if (esAdmin.value) return modulos.value;
 
-  return permisos.value
-    .filter(p => p.consultar === true || p.consultar === 1)
-    .map(p => p.modulo)
-    .filter(Boolean);
-});
+    const idsPermitidos = permisos.value
+      .filter(p =>
+        p.consultar === true ||
+        p.consultar === 1 ||
+        p.consultar === "true"
+      )
+      .map(p => p.idmodulo?.toString());
+
+    return modulos.value.filter(m =>
+      idsPermitidos.includes(m.id?.toString())
+    );
+  });
 
   /*PERMISOS HELPERS*/
   const tienePermiso = (moduloId, tipo) => {
@@ -126,26 +124,28 @@ const modulosPermitidos = computed(() => {
   const puedeBitacora = (id) => tienePermiso(id, "bitacora");
 
   /*MODULO ACTUAL*/
-const moduloActual = computed(() => {
-  //let modulo = modulos.value.find((m) => m.ruta === route.path);
-let modulo = modulos.value.find((m) => {
-  if (!m.ruta) return false;
+  const moduloActual = computed(() => {
+    let modulo = modulos.value.find((m) => {
+      if (!m.ruta) return false;
 
-  const cleanRuta = m.ruta.replace(/\/$/, "");
-  const cleanPath = route.path.replace(/\/$/, "");
+      const cleanRuta = m.ruta.replace(/\/$/, "");
+      const cleanPath = route.path.replace(/\/$/, "");
 
-  return cleanPath === cleanRuta || cleanPath.startsWith(cleanRuta + "/");
- // return cleanPath.startsWith(cleanRuta);
-});
-  // FIX: fallback si no encuentra
-  if (!modulo && modulos.value.length > 0) {
-    console.warn("Módulo no encontrado para la ruta:", route.path);
-     modulo = modulos.value.find(m => m.ruta && m.ruta !== "/") || modulos.value[0];
-  }
+      return (
+        cleanPath === cleanRuta ||
+        cleanPath.startsWith(cleanRuta + "/")
+      );
+    });
 
-  return modulo;
-});
+    if (!modulo && modulos.value.length > 0) {
+      console.warn("Módulo no encontrado para la ruta:", route.path);
+      modulo =
+        modulos.value.find(m => m.ruta && m.ruta !== "/") ||
+        modulos.value[0];
+    }
 
+    return modulo;
+  });
 
   const puedeConsultarRuta = computed(() => {
     if (esAdmin.value) return true;
@@ -167,17 +167,7 @@ let modulo = modulos.value.find((m) => {
     if (!usuario.value?.idperfil) return;
 
     if (process.client) {
-      /*const lastUpdate = localStorage.getItem("permisos_timestamp");
-      if (!lastUpdate || Date.now() - lastUpdate > 30000) {
-        await cargarPermisos(usuario.value.idperfil);
-      } else {
-        const cache = localStorage.getItem("permisos");
-        if (cache) permisos.value = JSON.parse(cache);
-      }*/
-     /* if (usuario.value?.idperfil) {
-  await cargarPermisos(usuario.value.idperfil);
-}*/
-await cargarPermisos(usuario.value.idperfil);
+      await cargarPermisos(usuario.value.idperfil);
     }
   };
 

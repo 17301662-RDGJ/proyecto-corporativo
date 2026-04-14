@@ -16,11 +16,11 @@ const {
   modulosPermitidos
 } = usePermisos();
 
-watch(usuario, async (nuevo) => {
+/*watch(usuario, async (nuevo) => {
   if (nuevo?.idperfil) {
     await refrescarPermisos();
   }
-});
+});*/
 
 
 /* ADMIN POR PERFIL */
