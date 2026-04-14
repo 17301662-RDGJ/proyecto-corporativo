@@ -86,7 +86,7 @@ const imprimir = () => {
 
   const fecha = new Date().toLocaleString();
 
-  // 🔥 Tabla limpia SIN botones
+  // Tabla limpia SIN botones
   const filas = perfilesFiltrados.value
     .map((p) => {
       const admin = p.bitadministrador ? "Sí" : "No";
@@ -230,7 +230,7 @@ const cargarPerfiles = async () => {
     return;
   }
 
-  console.log("Perfiles BD:", data); // 🔥 DEBUG
+  console.log("Perfiles BD:", data); // DEBUG
   perfiles.value = data || [];
 };
 

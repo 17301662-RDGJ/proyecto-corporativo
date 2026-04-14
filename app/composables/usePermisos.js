@@ -12,6 +12,8 @@ export const usePermisos = () => {
 
   let cargando = false;
 
+
+  
   /* ================================
      WATCH USUARIO
   ================================ */
@@ -112,7 +114,7 @@ export const usePermisos = () => {
     return permisos.value
       .filter((p) => p.consultar === true || p.consultar === 1)
       .map((p) => p.modulo);
-  });*/
+  });
 const modulosPermitidos = computed(() => {
   if (esAdmin.value) return modulos.value;
 
@@ -123,6 +125,14 @@ const modulosPermitidos = computed(() => {
         (p.consultar === true || p.consultar === 1)
     )
   );
+});*/
+const modulosPermitidos = computed(() => {
+  if (esAdmin.value) return modulos.value;
+
+  return permisos.value
+    .filter(p => p.consultar === true || p.consultar === 1)
+    .map(p => p.modulo)
+    .filter(Boolean);
 });
   /* ================================
      PERMISOS HELPERS
@@ -199,6 +209,9 @@ let modulo = modulos.value.find((m) => {
         const cache = localStorage.getItem("permisos");
         if (cache) permisos.value = JSON.parse(cache);
       }
+      if (usuario.value?.idperfil) {
+  await cargarPermisos(usuario.value.idperfil);
+}
     }
   };
 

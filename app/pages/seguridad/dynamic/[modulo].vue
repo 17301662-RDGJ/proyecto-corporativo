@@ -51,7 +51,7 @@ const modal = ref(false);
 const editando = ref(false);
 const indexEditar = ref(null);
 
-/* 🔎 FILTRO */
+/*FILTRO */
 const registrosFiltrados = computed(() => {
   if (!filtro.value) return registros.value;
 
@@ -60,7 +60,7 @@ const registrosFiltrados = computed(() => {
   );
 });
 
-/* 📄 PAGINADO */
+/* PAGINADO */
 const paginaActual = ref(1);
 const porPagina = 5;
 
@@ -237,7 +237,7 @@ const limpiarFormulario = () => {
     <Breadcrumbs :pagina="nombreModulo" />
     <h2>Módulo: {{ nombreModulo }}</h2>
 
-    <!-- 🔥 BARRA SUPERIOR -->
+    <!--BARRA SUPERIOR -->
     <div class="barra-superior">
       <input
         v-if="puedeConsultar(moduloId)"

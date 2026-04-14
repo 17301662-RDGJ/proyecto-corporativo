@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, onMounted } from "vue";
-import { useRoute } from "vue-router"; // 🔥 NUEVO
+import { useRoute } from "vue-router"; 
 import Swal from "sweetalert2";
 import { useSupabaseClient } from "#imports";
 import { usePermisos } from "~/composables/usePermisos";
@@ -14,7 +14,7 @@ definePageMeta({
   middleware: ["auth", "permiso"],
 });
 
-const route = useRoute(); // 🔥 NUEVO
+const route = useRoute(); // NUEVO
 const supabase = useSupabaseClient();
 
 /* DATA */
@@ -69,7 +69,7 @@ const usuario = ref({
 const { init, puedeConsultar, puedeAgregar, puedeEditar, puedeEliminar } =
   usePermisos();
 
-/* MODULO POR RUTA (CORREGIDO) */
+/* MODULO POR RUTA  */
 const moduloActual = computed(() => {
   return modulos.value.find(
     (m) => m.ruta && m.ruta.trim().replace(/\/$/, "") === route.path,
@@ -338,7 +338,7 @@ const guardar = async () => {
 
     let datos = { ...usuario.value, strfoto: urlImagen };
 
-    // 🔥 IMPORTANTE
+    // IMPORTANTE
     if (!editando.value) {
       delete datos.id;
     }
@@ -474,12 +474,12 @@ onMounted(async () => {
   <div class="container">
     <Breadcrumbs />
 
-    <!-- 🚫 SIN PERMISO -->
+    <!-- SIN PERMISO -->
     <div v-if="!tienePermisoConsultar">
       <h3>No tienes permiso para consultar este módulo</h3>
     </div>
 
-    <!-- ✅ CON PERMISO -->
+    <!-- CON PERMISO -->
     <div v-else>
       <h2>Usuario</h2>
 

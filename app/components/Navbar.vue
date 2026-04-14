@@ -30,7 +30,7 @@ const modulosPrincipales = computed(() => {
 
     return puedeConsultar(m.id);
   });
-});*/
+});
 const modulosPrincipales = computed(() => {
   if (!modulos.value.length) return [];
 
@@ -41,6 +41,13 @@ const modulosPrincipales = computed(() => {
 
     return puedeConsultar(m.id);
   });
+});*/
+const { modulosPermitidos } = usePermisos();
+
+const modulosPrincipales = computed(() => {
+  if (!modulosPermitidos.value.length) return [];
+
+  return modulosPermitidos.value.filter((m) => !m.parent_id);
 });
 
 /* HIJOS 
@@ -52,7 +59,7 @@ const hijos = (id) => {
 
     return puedeConsultar(m.id);
   });
-};*/
+};
 const hijos = (id) => {
   if (!modulos.value.length) return [];
 
@@ -63,6 +70,11 @@ const hijos = (id) => {
 
     return puedeConsultar(m.id);
   });
+};*/
+const hijos = (id) => {
+  return modulosPermitidos.value.filter(
+    (m) => m.parent_id === id
+  );
 };
 
 /* GENERAR RUTA CORRECTA */
@@ -83,11 +95,24 @@ const generarRuta = (modulo) => {
   return modulo.ruta.trim();
 };
 
-onMounted(async () => {
+/*onMounted(async () => {
   await init();
 
   console.log("MODULOS:", modulos.value);
   console.log("USUARIO:", usuario.value);
+
+  cargado.value = true;
+});*/
+onMounted(async () => {
+  await init();
+
+  // FORZAR CARGA DE PERMISOS
+  if (usuario.value?.idperfil) {
+    await refrescarPermisos();
+  }
+
+  console.log("MODULOS:", modulos.value);
+  console.log("PERMISOS:", permisos.value);
 
   cargado.value = true;
 });

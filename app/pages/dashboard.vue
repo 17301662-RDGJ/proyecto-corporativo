@@ -53,7 +53,9 @@ onMounted(async () => {
           <div class="avatar-container">
             <img v-if="usuario.strfoto" :src="usuario.strfoto" class="avatar" />
           </div>
-
+<div v-if="puedeConsultar(moduloActual?.id)">
+  Bienvenido
+</div>
           <div class="user-text">
             <p class="saludo">
               {{ saludo }},

@@ -11,7 +11,7 @@ definePageMeta({
 
 const supabase = useSupabaseClient();
 
-/* 🔐 PERMISOS GLOBAL */
+/* PERMISOS GLOBAL */
 const { init, puedeConsultar, puedeEditar, usuario, cargarPermisos, refrescarPermisos } =
   usePermisos();
 
@@ -145,7 +145,7 @@ const guardar = async () => {
   }
 
   // GUARDAR PRIMERO
-  const { error: errorDelete } = await supabase
+ /* const { error: errorDelete } = await supabase
     .from("permisos_perfil")
     .delete()
     .eq("idperfil", perfilSeleccionado.value);
@@ -168,20 +168,82 @@ const guardar = async () => {
   );
 
   for (let p of permisosValidos) {
-    const { error } = await supabase.from("permisos_perfil").insert({
-      idperfil: p.idperfil,
-      idmodulo: p.idmodulo,
-      agregar: p.agregar,
-      editar: p.editar,
-      eliminar: p.eliminar,
-      consultar: p.consultar,
-      imprimir: p.imprimir,
-      bitacora: p.bitacora,
-    });
+    const { error } = await supabase
+  .from("permisos_perfil")
+  .upsert({
+    idperfil: perfilSeleccionado,
+    idmodulo: modulo.id,
+    agregar: modulo.agregar,
+    editar: modulo.editar,
+    eliminar: modulo.eliminar,
+    consultar: modulo.consultar,
+    imprimir: modulo.imprimir,
+    bitacora: modulo.bitacora
+  });
+
+    if (error) console.error("Error INSERT:", error);
+  }
+*/
+const guardar = async () => {
+  if (!perfilSeleccionado.value) {
+    return mostrarNotificacion("Seleccione un perfil", "error");
+  }
+
+  // BORRAR PERMISOS ANTERIORES
+  const { error: errorDelete } = await supabase
+    .from("permisos_perfil")
+    .delete()
+    .eq("idperfil", perfilSeleccionado.value);
+
+  if (errorDelete) {
+    console.error("Error DELETE:", errorDelete);
+    return;
+  }
+
+  // FILTRAR SOLO LOS QUE TIENEN AL MENOS UN PERMISO
+  const permisosValidos = permisos.value.filter(
+    (p) =>
+      p.idperfil &&
+      p.idmodulo &&
+      (p.agregar ||
+        p.editar ||
+        p.eliminar ||
+        p.consultar ||
+        p.imprimir ||
+        p.bitacora)
+  );
+
+  // 💾 INSERT CORRECTO
+  for (let p of permisosValidos) {
+    const { error } = await supabase
+      .from("permisos_perfil")
+      .insert({
+        idperfil: p.idperfil,
+        idmodulo: p.idmodulo,
+        agregar: p.agregar,
+        editar: p.editar,
+        eliminar: p.eliminar,
+        consultar: p.consultar,
+        imprimir: p.imprimir,
+        bitacora: p.bitacora
+      });
 
     if (error) console.error("Error INSERT:", error);
   }
 
+  //  REFRESCAR PERMISOS
+  await refrescarPermisos();
+
+  if (process.client) {
+    localStorage.removeItem("permisos");
+  }
+
+  if (usuario.value?.idperfil === perfilSeleccionado.value) {
+    await refrescarPermisos();
+  }
+
+  mostrarNotificacion("Permisos guardados correctamente");
+};
   // REFRESH GLOBAL (IMPORTANTE)
   await refrescarPermisos();
 
@@ -353,7 +415,7 @@ onMounted(async () => {
   background: #f5f7fb;
 }
 
-/* 🔥 PANEL NUEVO */
+/* PANEL NUEVO */
 .panel-control {
   display: flex;
   justify-content: space-between;
