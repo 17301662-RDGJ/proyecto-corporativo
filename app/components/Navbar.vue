@@ -16,13 +16,6 @@ const {
   modulosPermitidos
 } = usePermisos();
 
-/*watch(usuario, async (nuevo) => {
-  if (nuevo?.idperfil) {
-    await refrescarPermisos();
-  }
-});*/
-
-
 /* ADMIN POR PERFIL */
 const esAdmin = computed(() => {
   return usuario.value?.idperfil === "21dde214-a4f0-4d75-99d7-a2f569cc13a8";
@@ -118,13 +111,17 @@ onMounted(async () => {
 
   // FORZAR CARGA DE PERMISOS
   if (usuario.value?.idperfil) {
-    await refrescarPermisos();
+    //await refrescarPermisos();
   }
 
   console.log("MODULOS:", modulos.value);
   console.log("PERMISOS:", permisos.value);
 
   cargado.value = true;
+});
+
+watch(modulosPermitidos, (val) => {
+  console.log("MODULOS PERMITIDOS ACTUALIZADOS:", val);
 });
 </script>
 

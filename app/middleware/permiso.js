@@ -1,11 +1,11 @@
 export default defineNuxtRouteMiddleware(async (to) => {
-  // ✅ Permitir login siempre
+  // 1. Permitir acceso al login siempre para evitar bucles infinitos
   if (to.path === "/login") return;
 
   if (process.client) {
     const usuario = useState("usuario");
 
-    // Recuperar usuario desde localStorage
+    // 2. Intentar recuperar la sesión del localStorage si el estado está vacío (F5)
     if (!usuario.value) {
       const stored = localStorage.getItem("usuario");
       if (stored) {
@@ -13,54 +13,64 @@ export default defineNuxtRouteMiddleware(async (to) => {
       }
     }
 
-    // Si no hay usuario, auth.js se encarga
-    if (!usuario.value) return;
+    // 3. Si no hay usuario después de intentar recuperar, redirigir a login
+    if (!usuario.value) {
+      return navigateTo("/login");
+    }
+
+    // 4. El Dashboard suele ser la zona común permitida
+    if (to.path === "/dashboard") return;
 
     const supabase = useSupabaseClient();
 
-    // Permitir dashboard siempre
-    if (to.path === "/dashboard") return;
+    /** * 5. BUSCAR MÓDULO (Optimizado)
+     * Normalizamos la ruta: quitamos la barra diagonal final y convertimos a minúsculas
+     * Usamos .ilike para que la búsqueda en la base de datos sea insensible a mayúsculas
+     */
+    const rutaBusqueda = to.path.replace(/\/$/, "");
 
-    // Buscar módulo por la ruta actual
-    const { data: modulo, error } = await supabase
+    const { data: modulo, error: errorMod } = await supabase
       .from("modulo")
-      .select("*")
-      .eq("ruta", to.path)
+      .select("id, strnombremodulo")
+      .ilike("ruta", rutaBusqueda)
       .maybeSingle();
 
-    if (error) {
-      console.error("Error buscando módulo:", error);
+    if (errorMod || !modulo) {
+      console.warn("Ruta no registrada en la tabla de módulos:", to.path);
+      // Según el requerimiento: si no tiene permiso (o no existe el módulo), va a login
       return navigateTo("/login");
     }
 
-    // Si no existe módulo → login
-    if (!modulo) {
-      console.warn("Módulo no encontrado para la ruta:", to.path);
-      return navigateTo("/login");
-    }
-
-    // Buscar permiso del perfil
-    const { data: permiso, error: errorPermiso } = await supabase
+    /**
+     * 6. VERIFICAR PERMISO DE CONSULTA
+     * El PDF exige que si no tiene permiso para la URL, se redireccione.
+     * Validamos que el bit de 'consultar' sea true.
+     */
+    const { data: permiso, error: errorPerm } = await supabase
       .from("permisos_perfil")
-      .select("*")
+      .select("consultar")
       .eq("idperfil", usuario.value.idperfil)
       .eq("idmodulo", modulo.id)
       .maybeSingle();
 
-    if (errorPermiso) {
-      console.error("Error buscando permiso:", errorPermiso);
+    if (errorPerm) {
+      console.error("Error técnico al validar permisos");
       return navigateTo("/login");
     }
 
-    // Si no tiene permiso → limpiar sesión + login
-    if (!permiso || !(permiso.consultar === true || permiso.consultar === 1)) {
-      console.warn("Sin permiso para esta ruta");
+    // 7. SI NO HAY REGISTRO O EL BIT 'CONSULTAR' ES FALSO
+    if (!permiso || permiso.consultar !== true) {
+      console.warn(`Acceso denegado al módulo: ${modulo.strnombremodulo}`);
 
+      // Limpiamos los datos de sesión para cumplir con el redireccionamiento estricto
       localStorage.removeItem("usuario");
       localStorage.removeItem("permisos");
       usuario.value = null;
 
       return navigateTo("/login");
     }
+
+    // Si pasa todas las validaciones, el usuario puede ver la página
+    console.log(`Acceso concedido a: ${modulo.strnombremodulo}`);
   }
 });

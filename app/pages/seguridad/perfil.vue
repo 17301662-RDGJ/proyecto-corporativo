@@ -1,425 +1,83 @@
 <script setup>
 import { ref, onMounted, computed } from "vue";
-import Swal from "sweetalert2";
+import { useRoute } from "vue-router";
 import { useSupabaseClient } from "#imports";
-import Pagination from "@/components/Pagination.vue";
 import { usePermisos } from "~/composables/usePermisos";
-
-// EXCEL
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 
-definePageMeta({
-  middleware: ["auth", "permiso"],
-}); //sin-acceso
+definePageMeta({ middleware: ["auth", "permiso"] });
 
-const supabase = useSupabaseClient();
+const client = useSupabaseClient();
+const route = useRoute();
+const { init, obtenerPermisosModulo, modulos: listaModulos } = usePermisos();
 
-/* 🔐 PERMISOS */
-const { permisos, init } = usePermisos();
-
-/* DATA */
-const perfiles = ref([]);
-const modal = ref(false);
-const editando = ref(false);
-const filtroPerfil = ref("");
-
-const perfil = ref({
-  id: null,
-  strnombreperfil: "",
-  bitadministrador: false,
+/* PERMISOS */
+const misPermisos = computed(() => {
+  const mod = listaModulos.value.find(m => m.ruta?.toLowerCase().replace(/\/$/, "") === route.path.toLowerCase().replace(/\/$/, ""));
+  return mod ? obtenerPermisosModulo(mod.id) : { consultar: false };
 });
 
-/* PAGINADO */
+const modulosData = ref([]);
+const filtro = ref("");
 const paginaActual = ref(1);
-const porPagina = 5;
 const totalPaginas = ref(1);
 
-/* NOTIFICACIONES */
-const notificacion = ref({ mostrar: false, mensaje: "", tipo: "success" });
-
-const mostrarNotificacion = (mensaje, tipo = "success") => {
-  notificacion.value = { mostrar: true, mensaje, tipo };
-  setTimeout(() => (notificacion.value.mostrar = false), 3000);
+const cargar = async () => {
+  const { data } = await client.from("modulo").select("*");
+  modulosData.value = data || [];
 };
 
-/* EXPORTAR EXCEL */
+/* REPORTES */
 const exportarExcel = () => {
-  if (!perfilesFiltrados.value.length) {
-    mostrarNotificacion("No hay datos para exportar", "error");
-    return;
-  }
-
-  const data = perfilesFiltrados.value.map((p) => ({
-    "Nombre Perfil": p.strnombreperfil,
-    Administrador: p.bitadministrador ? "Sí" : "No",
-  }));
-
-  const worksheet = XLSX.utils.json_to_sheet(data);
-
-  worksheet["!cols"] = [{ wch: 30 }, { wch: 15 }];
-
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, "Perfiles");
-
-  const excelBuffer = XLSX.write(workbook, {
-    bookType: "xlsx",
-    type: "array",
-  });
-
-  const fileData = new Blob([excelBuffer], {
-    type: "application/octet-stream",
-  });
-
-  const fecha = new Date().toISOString().split("T")[0];
-  saveAs(fileData, `perfiles_${fecha}.xlsx`);
-
-  mostrarNotificacion("Excel descargado correctamente");
+  const ws = XLSX.utils.json_to_sheet(modulosData.value);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Modulos");
+  XLSX.writeFile(wb, "modulos.xlsx");
 };
 
-/*Imprimir*/
 const imprimir = () => {
-  if (!perfilesFiltrados.value.length) {
-    mostrarNotificacion("No hay datos para imprimir", "error");
-    return;
-  }
-
-  const fecha = new Date().toLocaleString();
-
-  // Tabla limpia SIN botones
-  const filas = perfilesFiltrados.value
-    .map((p) => {
-      const admin = p.bitadministrador ? "Sí" : "No";
-
-      return `
-        <tr>
-          <td>${p.strnombreperfil}</td>
-          <td>${admin}</td>
-        </tr>
-      `;
-    })
-    .join("");
-
-  const tabla = `
-    <table>
-      <thead>
-        <tr>
-          <th>Nombre Perfil</th>
-          <th>Administrador</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${filas}
-      </tbody>
-    </table>
-  `;
-
-  const ventana = window.open("", "_blank");
-
-  ventana.document.write(`
-    <html>
-      <head>
-        <title>Reporte de Perfiles</title>
-        <style>
-          body {
-            font-family: Arial, sans-serif;
-            padding: 20px;
-          }
-
-          .header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 20px;
-          }
-
-          .logo {
-            height: 50px;
-          }
-
-          .titulo {
-            text-align: center;
-            flex: 1;
-            font-size: 22px;
-            font-weight: bold;
-          }
-
-          .fecha {
-            font-size: 12px;
-            color: #555;
-          }
-
-          table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 10px;
-          }
-
-          th {
-            background: #1e3a5f;
-            color: white;
-            padding: 10px;
-          }
-
-          td {
-            padding: 10px;
-            border: 1px solid #ccc;
-            text-align: center;
-          }
-        </style>
-      </head>
-
-      <body>
-        <div class="header">
-          <img 
-            id="logo"
-            src="https://nuxt.com/assets/design-kit/logo-green-black.svg" 
-            class="logo"
-          />
-
-          <div class="titulo">Reporte de Perfiles</div>
-
-          <div class="fecha">
-            ${fecha}
-          </div>
-        </div>
-
-        ${tabla}
-      </body>
-    </html>
-  `);
-
-  ventana.document.close();
-
-  //  Esperar logo antes de imprimir
-  const logo = ventana.document.getElementById("logo");
-
-  logo.onload = () => {
-    ventana.focus();
-    ventana.print();
-  };
-
-  setTimeout(() => {
-    ventana.focus();
-    ventana.print();
-  }, 800);
+  const filas = modulosData.value.map(m => `<tr><td>${m.strnombremodulo}</td><td>${m.ruta}</td></tr>`).join("");
+  const win = window.open("");
+  win.document.write(`<table><thead><tr><th>Nombre</th><th>Ruta</th></tr></thead><tbody>${filas}</tbody></table>`);
+  win.print();
 };
-/* FILTRO */
-const perfilesFiltrados = computed(() => {
-  if (!filtroPerfil.value) return perfiles.value;
 
-  return perfiles.value.filter((p) =>
-    p.strnombreperfil.toLowerCase().includes(filtroPerfil.value.toLowerCase()),
-  );
+const paginados = computed(() => {
+  const filtrados = modulosData.value.filter(m => m.strnombremodulo.toLowerCase().includes(filtro.value.toLowerCase()));
+  totalPaginas.value = Math.ceil(filtrados.length / 5);
+  return filtrados.slice((paginaActual.value - 1) * 5, paginaActual.value * 5);
 });
 
-/* PAGINADO */
-const perfilesPaginados = computed(() => {
-  const start = (paginaActual.value - 1) * porPagina;
-  totalPaginas.value = Math.ceil(perfilesFiltrados.value.length / porPagina);
-  return perfilesFiltrados.value.slice(start, start + porPagina);
-});
-
-/* CARGAR */
-const cargarPerfiles = async () => {
-  const { data, error } = await supabase.from("perfil").select("*").order("id");
-
-  if (error) {
-    console.log(error);
-    mostrarNotificacion("Error al obtener perfiles", "error");
-    return;
-  }
-
-  console.log("Perfiles BD:", data); // DEBUG
-  perfiles.value = data || [];
-};
-
-/* NUEVO */
-const nuevo = () => {
-  perfil.value = { id: null, strnombreperfil: "", bitadministrador: false };
-  editando.value = false;
-  modal.value = true;
-};
-
-/* EDITAR */
-const editar = (p) => {
-  perfil.value = { ...p };
-  editando.value = true;
-  modal.value = true;
-};
-
-/* VALIDAR */
-const validarPerfil = () => {
-  const nombre = perfil.value.strnombreperfil.trim();
-
-  if (!nombre) {
-    mostrarNotificacion("El nombre es obligatorio", "error");
-    return false;
-  }
-
-  if (nombre.length < 3) {
-    mostrarNotificacion("Mínimo 3 caracteres", "error");
-    return false;
-  }
-
-  const duplicado = perfiles.value.find(
-    (p) =>
-      p.strnombreperfil.toLowerCase() === nombre.toLowerCase() &&
-      p.id !== perfil.value.id,
-  );
-
-  if (duplicado) {
-    mostrarNotificacion("El perfil ya existe", "error");
-    return false;
-  }
-
-  return true;
-};
-
-/* GUARDAR */
-const guardar = async () => {
-  if (!validarPerfil()) return;
-
-  let error;
-
-  if (editando.value) {
-    const res = await supabase
-      .from("perfil")
-      .update({
-        strnombreperfil: perfil.value.strnombreperfil.trim(),
-        bitadministrador: perfil.value.bitadministrador,
-      })
-      .eq("id", perfil.value.id);
-
-    error = res.error;
-  } else {
-    const res = await supabase.from("perfil").insert({
-      strnombreperfil: perfil.value.strnombreperfil.trim(),
-      bitadministrador: perfil.value.bitadministrador,
-    });
-
-    error = res.error;
-  }
-
-  if (error) {
-    console.log(error);
-    mostrarNotificacion("Error al guardar", "error");
-    return;
-  }
-
-  mostrarNotificacion("Guardado correctamente");
-  modal.value = false;
-  cargarPerfiles();
-};
-
-/* ELIMINAR */
-const eliminar = async (id) => {
-  const result = await Swal.fire({
-    title: "¿Eliminar Perfil?",
-    text: "Esta acción no se puede deshacer",
-    icon: "warning",
-    showCancelButton: true,
-  });
-
-  if (!result.isConfirmed) return;
-
-  const { error } = await supabase.from("perfil").delete().eq("id", id);
-
-  if (error) {
-    mostrarNotificacion("Error al eliminar", "error");
-    return;
-  }
-
-  mostrarNotificacion("Eliminado correctamente");
-  cargarPerfiles();
-};
-
-/* INIT */
 onMounted(async () => {
   await init();
-  await cargarPerfiles(); // YA SIEMPRE SE EJECUTA
+  if (misPermisos.value.consultar) await cargar();
 });
 </script>
 
 <template>
-  <div v-if="notificacion.mostrar" :class="['notificacion', notificacion.tipo]">
-    {{ notificacion.mensaje }}
-  </div>
-
-  <div class="container">
-    <Breadcrumbs />
-
-    <h2>Perfil</h2>
-
-    <!-- FILTRO + BOTONES -->
-    <div class="filtros-container">
-      <!-- IZQUIERDA -->
-      <div class="filtros-izquierda">
-        <input v-model="filtroPerfil" placeholder="Buscar perfil..." />
-      </div>
-
-      <!-- DERECHA -->
-      <div class="acciones-derecha">
-        <button class="btn-icon nuevo" @click="nuevo" title="Nuevo">➕</button>
-        <button class="btn-icon imprimir" @click="imprimir" title="Imprimir">
-          🖨️
-        </button>
-        <button class="btn-icon excel" @click="exportarExcel" title="Exportar">
-          📊
-        </button>
-      </div>
+  <div class="container" v-if="misPermisos.consultar">
+    <Breadcrumbs pagina="Módulos" />
+    <div class="filtros">
+      <input v-model="filtro" placeholder="Filtrar..." />
+      <button v-if="misPermisos.agregar" class="btn nuevo">➕ Nuevo</button>
+      <button @click="imprimir" class="btn imprimir">🖨️</button>
+      <button @click="exportarExcel" class="btn excel">📊</button>
     </div>
-
     <table>
-      <thead>
-        <tr>
-          <th>Nombre Perfil</th>
-          <th>Administrador</th>
-          <th>Editar</th>
-          <th>Eliminar</th>
-        </tr>
-      </thead>
+      <thead><tr><th>Nombre</th><th>Ruta</th><th>Acciones</th></tr></thead>
       <tbody>
-        <tr v-for="p in perfilesPaginados" :key="p.id">
-          <td>{{ p.strnombreperfil }}</td>
+        <tr v-for="m in paginados" :key="m.id">
+          <td>{{ m.strnombremodulo }}</td>
+          <td>{{ m.ruta }}</td>
           <td>
-            <span v-if="p.bitadministrador">Sí</span>
-            <span v-else>No</span>
+            <button v-if="misPermisos.editar">✏️</button>
+            <button v-if="misPermisos.eliminar">🗑️</button>
           </td>
-          <td><button @click="editar(p)">✏️</button></td>
-          <td><button @click="eliminar(p.id)">🗑️</button></td>
         </tr>
       </tbody>
     </table>
-
-    <Pagination
-      :paginaActual="paginaActual"
-      :totalPaginas="totalPaginas"
-      @cambiar="paginaActual = $event"
-    />
-
-    <!-- MODAL -->
-    <div v-if="modal" class="modal">
-      <div class="modal-body">
-        <h3 v-if="!editando">Nuevo Perfil</h3>
-        <h3 v-else>Editar Perfil</h3>
-
-        <input
-          v-model="perfil.strnombreperfil"
-          placeholder="Nombre del perfil"
-        />
-
-        <label>
-          <input type="checkbox" v-model="perfil.bitadministrador" />
-          Administrador
-        </label>
-
-        <div class="acciones">
-          <button @click="guardar">Guardar</button>
-          <button @click="modal = false">Cancelar</button>
-        </div>
-      </div>
-    </div>
+    <Pagination :paginaActual="paginaActual" :totalPaginas="totalPaginas" @cambiar="paginaActual = $event" />
   </div>
 </template>
 

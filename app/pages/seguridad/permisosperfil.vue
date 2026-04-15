@@ -2,7 +2,6 @@
 import Breadcrumbs from "@/components/Breadcrumbs.vue";
 import { ref, onMounted, watch, computed } from "vue";
 import { useSupabaseClient } from "#imports";
-import Pagination from "@/components/Pagination.vue";
 import { usePermisos } from "~/composables/usePermisos";
 
 definePageMeta({
@@ -12,7 +11,7 @@ definePageMeta({
 const supabase = useSupabaseClient();
 
 /* PERMISOS GLOBAL */
-const { init, puedeConsultar, puedeEditar, usuario, cargarPermisos, refrescarPermisos } =
+const { init, puedeConsultar, puedeEditar, refrescarPermisos } =
   usePermisos();
 
 /* DATA */
@@ -26,11 +25,6 @@ const filtroModulo = ref("");
 const seleccionarTodos = ref(false);
 const colorCheckbox = ref("#4caf50");
 
-/* PAGINADO */
-const paginaActual = ref(1);
-const porPagina = 5;
-const totalPaginas = ref(1);
-
 /* NOTIFICACIONES */
 const notificacion = ref({ mostrar: false, mensaje: "", tipo: "success" });
 
@@ -42,7 +36,7 @@ const mostrarNotificacion = (mensaje, tipo = "success") => {
 /* MODULO ACTUAL */
 const moduloActual = computed(() => {
   return modulos.value.find(
-    (m) => m.strnombremodulo.toLowerCase() === "permisosperfil",
+    (m) => m.strnombremodulo.toLowerCase() === "permisosperfil"
   );
 });
 
@@ -51,22 +45,15 @@ const modulosFiltrados = computed(() => {
   if (!filtroModulo.value) return modulos.value;
 
   return modulos.value.filter((m) =>
-    m.strnombremodulo.toLowerCase().includes(filtroModulo.value.toLowerCase()),
+    m.strnombremodulo.toLowerCase().includes(filtroModulo.value.toLowerCase())
   );
-});
-
-/* PAGINADO */
-const modulosPaginados = computed(() => {
-  const start = (paginaActual.value - 1) * porPagina;
-  totalPaginas.value = Math.ceil(modulosFiltrados.value.length / porPagina);
-  return modulosFiltrados.value.slice(start, start + porPagina);
 });
 
 /* SELECCIONAR TODOS */
 const toggleSeleccionarTodos = () => {
   if (!perfilSeleccionado.value) return;
 
-  modulosPaginados.value.forEach((m) => {
+  modulosFiltrados.value.forEach((m) => {
     const permiso = obtenerPermiso(perfilSeleccionado.value, m.id);
 
     permiso.agregar = seleccionarTodos.value;
@@ -110,7 +97,6 @@ const cargarPermisosPerfil = async (perfilId) => {
 
 /* WATCH */
 watch(perfilSeleccionado, async (nuevo) => {
-  paginaActual.value = 1;
   seleccionarTodos.value = false;
   await cargarPermisosPerfil(nuevo);
 });
@@ -118,7 +104,7 @@ watch(perfilSeleccionado, async (nuevo) => {
 /* OBTENER PERMISO */
 const obtenerPermiso = (perfilId, moduloId) => {
   let permiso = permisos.value.find(
-    (p) => p.idperfil == perfilId && p.idmodulo == moduloId,
+    (p) => p.idperfil == perfilId && p.idmodulo == moduloId
   );
 
   if (!permiso) {
@@ -131,16 +117,10 @@ const obtenerPermiso = (perfilId, moduloId) => {
       consultar: false,
       imprimir: false,
       bitacora: false,
+      eliminados: false,
     };
 
-    //EVITAR DUPLICADOS EN MEMORIA
-    const yaExiste = permisos.value.some(
-      (p) => p.idperfil == perfilId && p.idmodulo == moduloId
-    );
-
-    if (!yaExiste) {
-      permisos.value.push(permiso);
-    }
+    permisos.value.push(permiso);
   }
 
   return permiso;
@@ -154,46 +134,47 @@ const guardarPermisos = async () => {
       return;
     }
 
+    // Asegurar que todos los módulos tengan permiso
+    modulos.value.forEach((m) =>
+      obtenerPermiso(perfilSeleccionado.value, m.id)
+    );
+
     const permisosAGuardar = permisos.value.map((p) => ({
+      ...(p.id ? { id: p.id } : {}),
       idperfil: p.idperfil,
       idmodulo: p.idmodulo,
-      agregar: p.agregar || false,
-      editar: p.editar || false,
-      eliminar: p.eliminar || false,
-      consultar: p.consultar || false,
-      imprimir: p.imprimir || false,
-      bitacora: p.bitacora || false,
-      eliminados: p.eliminados || false,
+      agregar: !!p.agregar,
+      editar: !!p.editar,
+      eliminar: !!p.eliminar,
+      consultar: !!p.consultar,
+      imprimir: !!p.imprimir,
+      bitacora: !!p.bitacora,
+      eliminados: !!p.eliminados,
     }));
 
     const { error } = await supabase
       .from("permisos_perfil")
       .upsert(permisosAGuardar, {
-        onConflict: ["idperfil", "idmodulo"],
+        onConflict: "idperfil,idmodulo",
       });
 
-    if (error) {
-      console.error("ERROR AL GUARDAR:", error);
-      mostrarNotificacion("Error al guardar permisos", "error");
-      return;
-    }
+    if (error) throw error;
 
     mostrarNotificacion("Permisos guardados correctamente");
 
-    // RECARGA GLOBAL CORRECTA
     await refrescarPermisos();
-
+    await cargarPermisosPerfil(perfilSeleccionado.value);
   } catch (err) {
-    console.error(err);
+    console.error("ERROR:", err);
+    mostrarNotificacion("Error al guardar: " + err.message, "error");
   }
 };
 
 /* INIT */
 onMounted(async () => {
   await init();
-  
-await refrescarPermisos();
-await cargarPerfiles();
+  await refrescarPermisos();
+  await cargarPerfiles();
   await cargarModulos();
 
   if (!moduloActual.value || !puedeConsultar(moduloActual.value.id)) {
@@ -203,8 +184,7 @@ await cargarPerfiles();
     });
   }
 });
-
-</script>>
+</script>
 
 <template>
   <div v-if="notificacion.mostrar" :class="['notificacion', notificacion.tipo]">
@@ -215,7 +195,6 @@ await cargarPerfiles();
     <Breadcrumbs pagina="Permisos Perfil" />
     <h2>Permisos Perfil</h2>
 
-    <!-- PANEL -->
     <div class="panel-control">
       <div class="busqueda">
         <select v-model="perfilSeleccionado">
@@ -256,58 +235,13 @@ await cargarPerfiles();
       </thead>
 
       <tbody v-if="perfilSeleccionado">
-        <tr v-for="m in modulosPaginados" :key="m.id">
+        <tr v-for="m in modulosFiltrados" :key="m.id">
           <td>{{ m.strnombremodulo }}</td>
 
-          <td>
+          <td v-for="accion in ['agregar','editar','eliminar','consultar','imprimir','bitacora']">
             <input
               type="checkbox"
-              v-model="obtenerPermiso(perfilSeleccionado, m.id).agregar"
-              :disabled="!puedeEditar(moduloActual?.id)"
-              :style="{ accentColor: colorCheckbox }"
-            />
-          </td>
-
-          <td>
-            <input
-              type="checkbox"
-              v-model="obtenerPermiso(perfilSeleccionado, m.id).editar"
-              :disabled="!puedeEditar(moduloActual?.id)"
-              :style="{ accentColor: colorCheckbox }"
-            />
-          </td>
-
-          <td>
-            <input
-              type="checkbox"
-              v-model="obtenerPermiso(perfilSeleccionado, m.id).eliminar"
-              :disabled="!puedeEditar(moduloActual?.id)"
-              :style="{ accentColor: colorCheckbox }"
-            />
-          </td>
-
-          <td>
-            <input
-              type="checkbox"
-              v-model="obtenerPermiso(perfilSeleccionado, m.id).consultar"
-              :disabled="!puedeEditar(moduloActual?.id)"
-              :style="{ accentColor: colorCheckbox }"
-            />
-          </td>
-
-          <td>
-            <input
-              type="checkbox"
-              v-model="obtenerPermiso(perfilSeleccionado, m.id).imprimir"
-              :disabled="!puedeEditar(moduloActual?.id)"
-              :style="{ accentColor: colorCheckbox }"
-            />
-          </td>
-
-          <td>
-            <input
-              type="checkbox"
-              v-model="obtenerPermiso(perfilSeleccionado, m.id).bitacora"
+              v-model="obtenerPermiso(perfilSeleccionado, m.id)[accion]"
               :disabled="!puedeEditar(moduloActual?.id)"
               :style="{ accentColor: colorCheckbox }"
             />
@@ -321,12 +255,6 @@ await cargarPerfiles();
         </tr>
       </tbody>
     </table>
-
-    <Pagination
-      :paginaActual="paginaActual"
-      :totalPaginas="totalPaginas"
-      @cambiar="paginaActual = $event"
-    />
 
     <div class="acciones">
       <button
