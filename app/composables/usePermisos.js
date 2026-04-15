@@ -99,8 +99,7 @@ const modulosPermitidos = computed(() => {
       p.consultar === 1 ||
       p.consultar === "true"
     )
-    .map(p => p.modulo?.id?.toString()) // 🔥 AQUÍ EL FIX REAL
-    .filter(Boolean);
+    .map(p => p.idmodulo?.toString());
 
   return modulos.value.filter(m =>
     idsPermitidos.includes(m.id?.toString())
@@ -112,13 +111,11 @@ const modulosPermitidos = computed(() => {
   if (esAdmin.value) return true;
 
   return permisos.value.some((p) => {
-    const id = p.modulo?.id || p.idmodulo; // 🔥 FIX
-    if (id?.toString() !== moduloId?.toString()) return false;
-
     return (
-      p[tipo] === true ||
-      p[tipo] === 1 ||
-      p[tipo] === "true"
+      p.idmodulo?.toString() === moduloId?.toString() &&
+      (p[tipo] === true ||
+        p[tipo] === 1 ||
+        p[tipo] === "true")
     );
   });
 };
