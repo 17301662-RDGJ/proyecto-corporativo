@@ -50,8 +50,15 @@ const paginados = computed(() => {
 });
 
 onMounted(async () => {
-  await init();
-  if (misPermisos.value.consultar) await cargar();
+  if (process.client) {
+    const usr = JSON.parse(localStorage.getItem("usuario"));
+    await init(usr); // <--- PASAR EL USUARIO AQUÍ
+    
+    // Ahora que init ya llenó los permisos, verificamos
+    if (misPermisos.value.consultar) {
+      await cargar();
+    }
+  }
 });
 </script>
 

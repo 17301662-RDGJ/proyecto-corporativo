@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, onMounted } from "vue";
-import { useRoute } from "vue-router"; 
+import { useRoute, useRouter } from "vue-router"; 
 import Swal from "sweetalert2";
 import { useSupabaseClient } from "#imports";
 import { usePermisos } from "~/composables/usePermisos";
@@ -16,14 +16,16 @@ definePageMeta({
 });
 
 const route = useRoute();
+const router = useRouter();
 const supabase = useSupabaseClient();
 
-/* PERMISOS (INTEGRACIÓN RECOMENDADA) */
+/* 🔐 PERMISOS CORREGIDOS */
 const { init, obtenerPermisosModulo, modulos } = usePermisos();
 
 /* DATA */
 const usuarios = ref([]);
 const perfiles = ref([]);
+const cargando = ref(true);
 
 /* FILTROS */
 const filtroUsuario = ref("");
@@ -61,130 +63,56 @@ const usuario = ref({
   strfoto: "",
 });
 
-// --- LÓGICA DE PERMISOS OPTIMIZADA ---
+/* ============================================================
+   🔐 LÓGICA DE SEGURIDAD (La llave del éxito)
+   ============================================================ */
+
+// 1. Encontramos el módulo comparando la ruta del navegador con la DB
 const moduloActual = computed(() => {
+  if (!modulos.value.length) return null;
   return modulos.value.find((m) => {
     if (!m.ruta) return false;
-    // Comparamos rutas limpias para evitar errores de "/" o mayúsculas
-    return m.ruta.trim().toLowerCase().replace(/\/$/, "") === route.path.trim().toLowerCase().replace(/\/$/, "");
+    // Normalizamos ambas rutas (minúsculas y sin diagonal final)
+    const rutaDb = m.ruta.trim().toLowerCase().replace(/\/$/, "");
+    const rutaActual = route.path.trim().toLowerCase().replace(/\/$/, "");
+    return rutaDb === rutaActual;
   });
 });
 
+// 2. Extraemos los permisos específicos (consultar, editar, etc.)
 const misPermisos = computed(() => {
   if (!moduloActual.value) return { consultar: false, agregar: false, editar: false, eliminar: false };
   return obtenerPermisosModulo(moduloActual.value.id);
 });
 
+// 3. Helper para el template
 const tienePermisoConsultar = computed(() => misPermisos.value.consultar);
 
-/* LIMPIAR */
-const limpiar = () => {
-  filtroUsuario.value = "";
-  filtroPerfil.value = "";
-  filtroEstado.value = "";
-};
+/* ============================================================
+   📦 CARGA DE DATOS
+   ============================================================ */
 
-/* EXPORTAR EXCEL (Tu función original) */
-const exportarExcel = () => {
-  if (!usuariosFiltrados.value.length) {
-    mostrarNotificacion("No hay datos para exportar", "error");
-    return;
-  }
-  const fecha = new Date().toLocaleDateString();
-  const data = usuariosFiltrados.value.map((u) => ({
-    Usuario: u.strnombreusuario,
-    Perfil: perfiles.value.find((p) => p.id === u.idperfil)?.strnombreperfil || "",
-    Estado: u.idestadousuario === 1 ? "Activo" : "Inactivo",
-    Correo: u.strcorreo,
-    Celular: u.strnumerocelular,
-  }));
-  const worksheet = XLSX.utils.json_to_sheet(data, { origin: "A4" });
-  XLSX.utils.sheet_add_aoa(worksheet, [["Reporte de Usuarios"], [`Fecha: ${fecha}`], []], { origin: "A1" });
-  worksheet["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 4 } }, { s: { r: 1, c: 0 }, e: { r: 1, c: 4 } }];
-  worksheet["!cols"] = [{ wch: 25 }, { wch: 20 }, { wch: 12 }, { wch: 30 }, { wch: 18 }];
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, "Usuarios");
-  const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
-  const fileData = new Blob([excelBuffer], { type: "application/octet-stream" });
-  saveAs(fileData, `usuarios_${new Date().toISOString().split("T")[0]}.xlsx`);
-  mostrarNotificacion("Excel generado correctamente");
-};
-
-/* IMPRIMIR (Tu función original) */
-const imprimir = () => {
-  if (!usuariosFiltrados.value.length) {
-    mostrarNotificacion("No hay datos para imprimir", "error");
-    return;
-  }
-  const fecha = new Date().toLocaleString();
-  const filas = usuariosFiltrados.value.map((u) => {
-    const perfil = perfiles.value.find((p) => p.id === u.idperfil)?.strnombreperfil || "";
-    const estado = u.idestadousuario === 1 ? "Activo" : "Inactivo";
-    return `<tr><td>${u.strnombreusuario}</td><td>${perfil}</td><td>${estado}</td><td>${u.strcorreo}</td><td>${u.strnumerocelular}</td></tr>`;
-  }).join("");
-
-  const tabla = `<table><thead><tr><th>Usuario</th><th>Perfil</th><th>Estado</th><th>Correo</th><th>Celular</th></tr></thead><tbody>${filas}</tbody></table>`;
-  const ventana = window.open("", "_blank");
-  ventana.document.write(`<html><head><title>Reporte</title><style>body{font-family:Arial;padding:20px;} table{width:100%;border-collapse:collapse;} th{background:#1e3a5f;color:white;padding:10px;} td{padding:10px;border:1px solid #ccc;text-align:center;}</style></head><body><h2>Reporte de Usuarios</h2><p>${fecha}</p>${tabla}</body></html>`);
-  ventana.document.close();
-  setTimeout(() => { ventana.focus(); ventana.print(); }, 800);
-};
-
-/* IMAGEN */
-const seleccionarImagen = (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
-  if (!file.type.startsWith("image/")) {
-    mostrarNotificacion("Solo se permiten imágenes", "error");
-    return;
-  }
-  imagen.value = file;
-  preview.value = URL.createObjectURL(file);
-};
-
-/* GUARDAR (Tu función original) */
-const guardar = async () => {
-  let urlImagen = usuario.value.strfoto;
-  try {
-    if (imagen.value) {
-      const nombre = Date.now() + "_" + imagen.value.name;
-      const { error: uploadError } = await supabase.storage.from("usuario").upload(nombre, imagen.value);
-      if (uploadError) return mostrarNotificacion("Error al subir imagen", "error");
-      const { data: publicUrlData } = supabase.storage.from("usuario").getPublicUrl(nombre);
-      urlImagen = publicUrlData.publicUrl;
-    }
-    let datos = { ...usuario.value, strfoto: urlImagen };
-    if (!editando.value) delete datos.id;
-    const res = editando.value
-      ? await supabase.from("usuario").update(datos).eq("id", usuario.value.id)
-      : await supabase.from("usuario").insert(datos);
-    if (res.error) return mostrarNotificacion("Error al guardar", "error");
-    mostrarNotificacion("Guardado correctamente");
-    modal.value = false;
-    cargarUsuarios();
-  } catch (err) { mostrarNotificacion("Error inesperado", "error"); }
-};
-
-/* CARGAS */
 const cargarPerfiles = async () => {
-  const { data } = await supabase.from("perfil").select("*");
+  const { data } = await supabase.from("perfil").select("*").order("strnombreperfil");
   perfiles.value = data || [];
 };
 
 const cargarUsuarios = async () => {
-  const { data } = await supabase.from("usuario").select("*");
+  const { data } = await supabase.from("usuario").select("*").order("id");
   usuarios.value = data || [];
   paginaActual.value = 1;
 };
 
-/* FILTROS Y PAGINADO */
+/* ============================================================
+   ⚙️ ACCIONES Y FILTROS
+   ============================================================ */
+
 const usuariosFiltrados = computed(() => {
   return usuarios.value.filter((u) => {
-    return (
-      u.strnombreusuario.toLowerCase().includes(filtroUsuario.value.toLowerCase()) &&
-      (!filtroPerfil.value || u.idperfil == filtroPerfil.value) &&
-      (!filtroEstado.value || u.idestadousuario == filtroEstado.value)
-    );
+    const cumpleNombre = u.strnombreusuario.toLowerCase().includes(filtroUsuario.value.toLowerCase());
+    const cumplePerfil = !filtroPerfil.value || u.idperfil === filtroPerfil.value;
+    const cumpleEstado = filtroEstado.value === "" || u.idestadousuario == filtroEstado.value;
+    return cumpleNombre && cumplePerfil && cumpleEstado;
   });
 });
 
@@ -194,29 +122,91 @@ const usuariosPaginados = computed(() => {
   return usuariosFiltrados.value.slice(start, start + porPagina);
 });
 
-/* ACCIONES CRUD */
-const nuevo = () => {
-  usuario.value = { id: null, strnombreusuario: "", idperfil: "", strpwd: "", idestadousuario: 1, strcorreo: "", strnumerocelular: "", strfoto: "" };
-  preview.value = ""; imagen.value = null; editando.value = false; modal.value = true;
+const limpiar = () => {
+  filtroUsuario.value = "";
+  filtroPerfil.value = "";
+  filtroEstado.value = "";
 };
 
-const editar = (u) => {
-  usuario.value = { ...u }; preview.value = u.strfoto; editando.value = true; modal.value = true;
+const guardar = async () => {
+  let urlImagen = usuario.value.strfoto;
+  try {
+    if (imagen.value) {
+      const nombre = Date.now() + "_" + imagen.value.name;
+      const { error: uploadError } = await supabase.storage.from("usuario").upload(nombre, imagen.value);
+      if (uploadError) throw new Error("Error al subir imagen");
+      const { data: publicUrlData } = supabase.storage.from("usuario").getPublicUrl(nombre);
+      urlImagen = publicUrlData.publicUrl;
+    }
+
+    const datos = { ...usuario.value, strfoto: urlImagen };
+    if (!editando.value) delete datos.id;
+
+    const res = editando.value
+      ? await supabase.from("usuario").update(datos).eq("id", usuario.value.id)
+      : await supabase.from("usuario").insert(datos);
+
+    if (res.error) throw res.error;
+
+    mostrarNotificacion("Guardado correctamente");
+    modal.value = false;
+    await cargarUsuarios();
+  } catch (err) {
+    mostrarNotificacion("Error: " + err.message, "error");
+  }
 };
 
 const eliminar = async (id) => {
   const result = await Swal.fire({ title: "¿Eliminar usuario?", icon: "warning", showCancelButton: true });
   if (!result.isConfirmed) return;
-  await supabase.from("usuario").delete().eq("id", id);
+  const { error } = await supabase.from("usuario").delete().eq("id", id);
+  if (error) return mostrarNotificacion("No se pudo eliminar", "error");
   mostrarNotificacion("Eliminado");
-  cargarUsuarios();
+  await cargarUsuarios();
 };
 
+const editar = (u) => {
+  usuario.value = { ...u }; 
+  preview.value = u.strfoto; 
+  editando.value = true; 
+  modal.value = true;
+};
+
+const nuevo = () => {
+  usuario.value = { id: null, strnombreusuario: "", idperfil: "", strpwd: "", idestadousuario: 1, strcorreo: "", strnumerocelular: "", strfoto: "" };
+  preview.value = ""; imagen.value = null; editando.value = false; modal.value = true;
+};
+
+const seleccionarImagen = (e) => {
+  const file = e.target.files[0];
+  if (file) {
+    imagen.value = file;
+    preview.value = URL.createObjectURL(file);
+  }
+};
+
+/* ============================================================
+   🚀 CICLO DE VIDA
+   ============================================================ */
+
 onMounted(async () => {
-  await init(); // Carga permisos y módulos
-  if (tienePermisoConsultar.value) {
+  const usr = process.client ? JSON.parse(localStorage.getItem("usuario")) : null;
+  
+  if (usr) {
+    // Inicializamos permisos con el usuario del localStorage
+    await init(usr); 
+    
+    // Cargamos catálogos
     await cargarPerfiles();
     await cargarUsuarios();
+    
+    cargando.value = false;
+
+    if (!tienePermisoConsultar.value) {
+      console.warn("Ruta denegada:", route.path);
+    }
+  } else {
+    router.push("/login");
   }
 });
 </script>

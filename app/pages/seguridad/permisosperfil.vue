@@ -11,8 +11,7 @@ definePageMeta({
 const supabase = useSupabaseClient();
 
 /* PERMISOS GLOBAL */
-const { init, puedeConsultar, puedeEditar, refrescarPermisos } =
-  usePermisos();
+const { init, puedeConsultar, puedeEditar, refrescarPermisos } = usePermisos();
 
 /* DATA */
 const perfiles = ref([]);
@@ -36,14 +35,13 @@ const mostrarNotificacion = (mensaje, tipo = "success") => {
 /* MODULO ACTUAL */
 const moduloActual = computed(() => {
   return modulos.value.find(
-    (m) => m.strnombremodulo.toLowerCase() === "permisosperfil"
+    (m) => m.strnombremodulo.toLowerCase().replace(/\s/g, "") === "permisosperfil"
   );
 });
 
 /* FILTRAR */
 const modulosFiltrados = computed(() => {
   if (!filtroModulo.value) return modulos.value;
-
   return modulos.value.filter((m) =>
     m.strnombremodulo.toLowerCase().includes(filtroModulo.value.toLowerCase())
   );
@@ -55,7 +53,6 @@ const toggleSeleccionarTodos = () => {
 
   modulosFiltrados.value.forEach((m) => {
     const permiso = obtenerPermiso(perfilSeleccionado.value, m.id);
-
     permiso.agregar = seleccionarTodos.value;
     permiso.editar = seleccionarTodos.value;
     permiso.eliminar = seleccionarTodos.value;
@@ -67,46 +64,53 @@ const toggleSeleccionarTodos = () => {
 
 /* CARGAS */
 const cargarPerfiles = async () => {
-  const { data } = await supabase
-    .from("perfil")
-    .select("*")
-    .order("strnombreperfil");
-
+  const { data } = await supabase.from("perfil").select("*").order("strnombreperfil");
   perfiles.value = data || [];
 };
 
 const cargarModulos = async () => {
-  const { data } = await supabase
-    .from("modulo")
-    .select("*")
-    .order("strnombremodulo");
-
+  const { data } = await supabase.from("modulo").select("*").order("strnombremodulo");
   modulos.value = data || [];
 };
 
 const cargarPermisosPerfil = async (perfilId) => {
-  if (!perfilId) return;
-
+  if (!perfilId) {
+    permisos.value = [];
+    return;
+  }
   const { data } = await supabase
     .from("permisos_perfil")
     .select("*")
     .eq("idperfil", perfilId);
 
-  permisos.value = data || [];
+  // Mapeamos para que los datos de la DB sean reactivos en los checkboxes
+  permisos.value = (data || []).map(p => ({
+    ...p,
+    agregar: !!p.agregar,
+    editar: !!p.editar,
+    eliminar: !!p.eliminar,
+    consultar: !!p.consultar,
+    imprimir: !!p.imprimir,
+    bitacora: !!p.bitacora
+  }));
 };
 
-/* WATCH */
+/* WATCH: Este es el motor que llena la tabla al cambiar el select */
 watch(perfilSeleccionado, async (nuevo) => {
   seleccionarTodos.value = false;
-  await cargarPermisosPerfil(nuevo);
+  if (nuevo) {
+    await cargarPermisosPerfil(nuevo);
+  }
 });
 
-/* OBTENER PERMISO */
+/* OBTENER PERMISO - CORREGIDO PARA UUID Y PERSISTENCIA */
 const obtenerPermiso = (perfilId, moduloId) => {
+  // Buscamos en el arreglo lo que ya bajó de Supabase
   let permiso = permisos.value.find(
-    (p) => p.idperfil == perfilId && p.idmodulo == moduloId
+    (p) => String(p.idperfil) === String(perfilId) && String(p.idmodulo) === String(moduloId)
   );
 
+  // Si no existe, creamos el objeto vacío para ese módulo
   if (!permiso) {
     permiso = {
       idperfil: perfilId,
@@ -119,10 +123,8 @@ const obtenerPermiso = (perfilId, moduloId) => {
       bitacora: false,
       eliminados: false,
     };
-
     permisos.value.push(permiso);
   }
-
   return permiso;
 };
 
@@ -134,34 +136,28 @@ const guardarPermisos = async () => {
       return;
     }
 
-    // Asegurar que todos los módulos tengan permiso
-    modulos.value.forEach((m) =>
-      obtenerPermiso(perfilSeleccionado.value, m.id)
-    );
-
-    const permisosAGuardar = permisos.value.map((p) => ({
-      ...(p.id ? { id: p.id } : {}),
-      idperfil: p.idperfil,
-      idmodulo: p.idmodulo,
-      agregar: !!p.agregar,
-      editar: !!p.editar,
-      eliminar: !!p.eliminar,
-      consultar: !!p.consultar,
-      imprimir: !!p.imprimir,
-      bitacora: !!p.bitacora,
-      eliminados: !!p.eliminados,
-    }));
+    const permisosAGuardar = permisos.value
+      .filter(p => String(p.idperfil) === String(perfilSeleccionado.value))
+      .map((p) => ({
+        ...(p.id ? { id: p.id } : {}),
+        idperfil: p.idperfil,
+        idmodulo: p.idmodulo,
+        agregar: !!p.agregar,
+        editar: !!p.editar,
+        eliminar: !!p.eliminar,
+        consultar: !!p.consultar,
+        imprimir: !!p.imprimir,
+        bitacora: !!p.bitacora,
+        eliminados: !!p.eliminados,
+      }));
 
     const { error } = await supabase
       .from("permisos_perfil")
-      .upsert(permisosAGuardar, {
-        onConflict: "idperfil,idmodulo",
-      });
+      .upsert(permisosAGuardar, { onConflict: "idperfil,idmodulo" });
 
     if (error) throw error;
 
     mostrarNotificacion("Permisos guardados correctamente");
-
     await refrescarPermisos();
     await cargarPermisosPerfil(perfilSeleccionado.value);
   } catch (err) {
@@ -170,18 +166,12 @@ const guardarPermisos = async () => {
   }
 };
 
-/* INIT */
 onMounted(async () => {
-  await init();
-  await refrescarPermisos();
-  await cargarPerfiles();
-  await cargarModulos();
-
-  if (!moduloActual.value || !puedeConsultar(moduloActual.value.id)) {
-    throw createError({
-      statusCode: 403,
-      statusMessage: "No tiene permisos",
-    });
+  const usr = process.client ? JSON.parse(localStorage.getItem("usuario")) : null;
+  if (usr) {
+    await init(usr);
+    await cargarPerfiles();
+    await cargarModulos();
   }
 });
 </script>
@@ -203,20 +193,14 @@ onMounted(async () => {
             {{ p.strnombreperfil }}
           </option>
         </select>
-
         <input v-model="filtroModulo" placeholder="Buscar módulo..." />
       </div>
 
       <div class="acciones-panel">
         <label class="check-todos">
-          <input
-            type="checkbox"
-            v-model="seleccionarTodos"
-            @change="toggleSeleccionarTodos"
-          />
+          <input type="checkbox" v-model="seleccionarTodos" @change="toggleSeleccionarTodos" />
           Seleccionar todos
         </label>
-
         <input type="color" v-model="colorCheckbox" />
       </div>
     </div>
@@ -234,15 +218,13 @@ onMounted(async () => {
         </tr>
       </thead>
 
-      <tbody v-if="perfilSeleccionado">
+      <tbody v-if="perfilSeleccionado && modulos.length > 0">
         <tr v-for="m in modulosFiltrados" :key="m.id">
-          <td>{{ m.strnombremodulo }}</td>
-
-          <td v-for="accion in ['agregar','editar','eliminar','consultar','imprimir','bitacora']">
+          <td style="text-align: left; padding-left: 20px;"><strong>{{ m.strnombremodulo }}</strong></td>
+          <td v-for="accion in ['agregar','editar','eliminar','consultar','imprimir','bitacora']" :key="accion">
             <input
               type="checkbox"
               v-model="obtenerPermiso(perfilSeleccionado, m.id)[accion]"
-              :disabled="!puedeEditar(moduloActual?.id)"
               :style="{ accentColor: colorCheckbox }"
             />
           </td>
@@ -251,103 +233,31 @@ onMounted(async () => {
 
       <tbody v-else>
         <tr>
-          <td colspan="7">Seleccione un perfil</td>
+          <td colspan="7">{{ perfilSeleccionado ? 'Cargando módulos...' : 'Seleccione un perfil para ver la tabla' }}</td>
         </tr>
       </tbody>
     </table>
 
-    <div class="acciones">
-      <button
-        class="guardar"
-        @click="guardarPermisos"
-        v-if="moduloActual && puedeEditar(moduloActual.id)"
-      >
-        Guardar
+    <div class="acciones" v-if="perfilSeleccionado">
+      <button class="guardar" @click="guardarPermisos">
+        Guardar Cambios
       </button>
     </div>
   </div>
 </template>
 
 <style scoped>
-.container {
-  padding: 30px;
-  background: #f5f7fb;
-}
-
-/* PANEL NUEVO */
-.panel-control {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: #ffffff;
-  padding: 15px;
-  border-radius: 10px;
-  margin-bottom: 20px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
-}
-
-.busqueda {
-  display: flex;
-  gap: 10px;
-}
-
-.busqueda input,
-.busqueda select {
-  padding: 8px;
-  border-radius: 6px;
-  border: 1px solid #ccc;
-}
-
-.acciones-panel {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-}
-
-.check-todos {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  font-weight: 500;
-}
-
-table {
-  width: 100%;
-  background: white;
-}
-
-th {
-  background: #1e3a5f;
-  color: white;
-}
-
-td,
-th {
-  padding: 10px;
-  text-align: center;
-}
-
-.guardar {
-  background: #4caf50;
-  color: white;
-  padding: 10px 20px;
-  margin-top: 15px;
-}
-
-.notificacion {
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  padding: 14px;
-  border-radius: 8px;
-  color: white;
-}
-
-.success {
-  background: #4caf50;
-}
-
-.error {
-  background: #e53935;
-}
+.container { padding: 30px; background: #f5f7fb; min-height: 100vh; }
+.panel-control { display: flex; justify-content: space-between; align-items: center; background: white; padding: 15px; border-radius: 10px; margin-bottom: 20px; box-shadow: 0 2px 6px rgba(0,0,0,0.08); }
+.busqueda { display: flex; gap: 10px; }
+.busqueda input, .busqueda select { padding: 8px; border-radius: 6px; border: 1px solid #ccc; }
+.acciones-panel { display: flex; align-items: center; gap: 15px; }
+.check-todos { display: flex; align-items: center; gap: 5px; font-weight: 500; cursor: pointer; }
+table { width: 100%; background: white; border-collapse: collapse; }
+th { background: #1e3a5f; color: white; padding: 10px; }
+td { padding: 10px; text-align: center; border-bottom: 1px solid #eee; }
+.guardar { background: #4caf50; color: white; padding: 10px 25px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; margin-top: 20px; }
+.notificacion { position: fixed; top: 20px; right: 20px; padding: 14px; border-radius: 8px; color: white; z-index: 1000; }
+.success { background: #4caf50; }
+.error { background: #e53935; }
 </style>

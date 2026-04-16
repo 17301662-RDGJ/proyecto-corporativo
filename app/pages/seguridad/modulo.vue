@@ -354,15 +354,28 @@ const eliminar = async (id) => {
 
 /* INIT */
 onMounted(async () => {
-  await init();
+  const usr = process.client ? JSON.parse(localStorage.getItem("usuario")) : null;
+  
+  if (usr) {
+    // 1. Cargamos permisos y módulos al mismo tiempo para no perder tiempo
+    await init(usr); 
 
-  const permitido = puedeConsultarRuta.value;
+    // 2. Cargamos los datos de la tabla INMEDIATAMENTE
+    // No esperes a la validación para traer los datos, 
+    // tráelos y luego decides si lo sacas de la página.
+    await obtenerModulos();
 
-  if (!permitido) {
-    window.location.href = "/dashboard";
-    return;
+    // 3. Ahora sí validamos la seguridad
+    if (!puedeConsultarRuta.value) {
+      mostrarNotificacion("Acceso denegado", "error");
+      setTimeout(() => {
+        useRouter().push("/dashboard");
+      }, 1500);
+      return;
+    }
+  } else {
+    window.location.href = "/login";
   }
-  await obtenerModulos();
 });
 </script>
 
