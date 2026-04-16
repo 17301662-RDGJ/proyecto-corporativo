@@ -13,28 +13,22 @@ definePageMeta({
 const route = useRoute();
 const nombreModulo = ref(route.params.modulo || "");
 
-const {
-  init,
-  validarRuta,
-  puedeAgregar,
-  puedeEditar,
-  puedeEliminar,
-  puedeConsultar,
-  puedeImprimir,
-  puedeBitacora,
-  modulos,
-} = usePermisos();
+// 🟢 USAMOS EL SISTEMA DE PERMISOS NUEVO
+const { init, modulos, obtenerPermisosModulo } = usePermisos();
+const cargando = ref(true);
 
-const moduloId = ref(null);
+// 1. Detectamos el módulo leyendo la URL exacta
+const moduloDetectado = computed(() => {
+  return modulos.value.find((m) => m.ruta === route.path);
+});
 
-watch(
-  () => route.params.modulo,
-  async (nuevo) => {
-    nombreModulo.value = nuevo || "";
-    cargarModuloId();
-    cargarDatos();
-  },
-);
+// 2. Extraemos los permisos de este módulo específico
+const permisosDelModulo = computed(() => {
+  if (!moduloDetectado.value) {
+    return { consultar: false, agregar: false, editar: false, eliminar: false, imprimir: false, bitacora: false };
+  }
+  return obtenerPermisosModulo(moduloDetectado.value.id);
+});
 
 const getStorageKey = () => `modulo_${nombreModulo.value}`;
 
@@ -51,10 +45,9 @@ const modal = ref(false);
 const editando = ref(false);
 const indexEditar = ref(null);
 
-/*FILTRO */
+/* FILTRO */
 const registrosFiltrados = computed(() => {
   if (!filtro.value) return registros.value;
-
   return registros.value.filter((r) =>
     (r.nombre || "").toLowerCase().includes(filtro.value.toLowerCase()),
   );
@@ -65,7 +58,7 @@ const paginaActual = ref(1);
 const porPagina = 5;
 
 const totalPaginas = computed(() =>
-  Math.ceil(registrosFiltrados.value.length / porPagina),
+  Math.ceil(registrosFiltrados.value.length / porPagina) || 1
 );
 
 const registrosPaginados = computed(() => {
@@ -79,55 +72,26 @@ const cambiarPagina = (pagina) => {
   }
 };
 
+/* ACCIONES */
 const imprimir = () => {
-  if (!puedeImprimir(moduloId.value)) {
-    Swal.fire("Sin permiso", "No puedes imprimir", "warning");
-    return;
-  }
   window.print();
 };
 
 const exportarExcel = () => {
-  if (!puedeBitacora(moduloId.value)) {
-    Swal.fire("Sin permiso", "No puedes exportar", "warning");
-    return;
-  }
-
   if (registros.value.length === 0) {
     Swal.fire("Sin datos", "No hay registros para exportar", "info");
     return;
   }
-
   let contenido = "Nombre,Descripción,Estado\n";
-
   registros.value.forEach((r) => {
     contenido += `${r.nombre || ""},${r.descripcion || ""},${r.estado || ""}\n`;
   });
-
   const blob = new Blob([contenido], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
-
   const link = document.createElement("a");
   link.href = url;
   link.download = `modulo_${nombreModulo.value}.csv`;
   link.click();
-};
-
-const cargarModuloId = () => {
-  const nombre = route.params.modulo?.toLowerCase();
-
-  const modulo = modulos.value.find(
-    (m) =>
-      m.strnombremodulo?.toLowerCase() === nombre
-  );
-
-  if (!modulo) {
-    console.warn("⚠️ Módulo no encontrado:", nombre);
-    moduloId.value = null;
-    return;
-  }
-
-  moduloId.value = modulo.id;
 };
 
 const cargarDatos = () => {
@@ -135,40 +99,19 @@ const cargarDatos = () => {
   registros.value = data ? JSON.parse(data) : [];
 };
 
-onMounted(async () => {
-  await init();
-
-  const permitido = await validarRuta(route.path);
-
-  if (!permitido) {
-    window.location.href = "/dashboard";
-    return;
-  }
-
-  cargarModuloId();
-  cargarDatos();
-});
-
 const validarFormulario = () => {
   if (!form.value.nombre.trim()) {
     Swal.fire("Error", "El nombre es obligatorio", "error");
     return false;
   }
-
   if (form.value.nombre.length < 3) {
     Swal.fire("Error", "Mínimo 3 caracteres", "error");
     return false;
   }
-
   return true;
 };
 
 const guardar = () => {
-  if (!puedeAgregar(moduloId.value)) {
-    Swal.fire("Sin permiso", "No puedes agregar", "warning");
-    return;
-  }
-
   if (!validarFormulario()) return;
 
   if (editando.value) {
@@ -179,14 +122,10 @@ const guardar = () => {
 
   localStorage.setItem(getStorageKey(), JSON.stringify(registros.value));
   cerrarModal();
+  Swal.fire("Éxito", "Registro guardado", "success");
 };
 
 const editar = (registro, index) => {
-  if (!puedeEditar(moduloId.value)) {
-    Swal.fire("Sin permiso", "No puedes editar", "warning");
-    return;
-  }
-
   form.value = { ...registro };
   editando.value = true;
   indexEditar.value = index;
@@ -194,11 +133,6 @@ const editar = (registro, index) => {
 };
 
 const eliminar = async (index) => {
-  if (!puedeEliminar(moduloId.value)) {
-    Swal.fire("Sin permiso", "No puedes eliminar", "warning");
-    return;
-  }
-
   const result = await Swal.fire({
     title: "¿Eliminar?",
     text: "No podrás revertir esto",
@@ -211,10 +145,10 @@ const eliminar = async (index) => {
 
   registros.value.splice(index, 1);
   localStorage.setItem(getStorageKey(), JSON.stringify(registros.value));
+  Swal.fire("Eliminado", "El registro ha sido eliminado", "success");
 };
 
 const abrirModal = () => {
-  if (!puedeAgregar(moduloId.value)) return;
   limpiarFormulario();
   modal.value = true;
 };
@@ -225,251 +159,135 @@ const cerrarModal = () => {
 };
 
 const limpiarFormulario = () => {
-  form.value = {
-    nombre: "",
-    descripcion: "",
-    estado: "Activo",
-  };
+  form.value = { nombre: "", descripcion: "", estado: "Activo" };
   editando.value = false;
   indexEditar.value = null;
 };
+
+watch(
+  () => route.path,
+  () => {
+    nombreModulo.value = route.params.modulo || "";
+    cargarDatos();
+  }
+);
+
+onMounted(async () => {
+  const usr = process.client ? JSON.parse(localStorage.getItem("usuario")) : null;
+  if (usr) {
+    await init(usr);
+  }
+  cargarDatos();
+  cargando.value = false;
+});
 </script>
 
 <template>
-  <div class="container">
-    <Breadcrumbs :pagina="nombreModulo" />
-    <h2>Módulo: {{ nombreModulo }}</h2>
-
-    <!--BARRA SUPERIOR -->
-    <div class="barra-superior">
-      <input
-        v-if="puedeConsultar(moduloId)"
-        v-model="filtro"
-        placeholder="Buscar..."
-      />
-
-      <p v-else class="sin-permiso">🔒 Sin permiso</p>
-
-      <div class="acciones-derecha">
-        <button v-if="puedeAgregar(moduloId)" class="nuevo" @click="abrirModal">
-          +
-        </button>
-        <button
-          v-if="puedeImprimir(moduloId)"
-          class="imprimir"
-          @click="imprimir"
-        >
-          🖨️
-        </button>
-        <button
-          v-if="puedeBitacora(moduloId)"
-          class="excel"
-          @click="exportarExcel"
-        >
-          📊
-        </button>
+  <div class="pagina-completa">
+    
+    <div class="container">
+      <Breadcrumbs :pagina="moduloDetectado ? moduloDetectado.strnombremodulo : nombreModulo" />
+      
+      <div v-if="cargando" class="cargando-box">
+        <p>Cargando módulo...</p>
       </div>
-    </div>
 
-    <!-- TABLA -->
-    <table>
-      <thead>
-        <tr>
-          <th>Nombre</th>
-          <th>Descripción</th>
-          <th>Estado</th>
-          <th>Acciones</th>
-        </tr>
-      </thead>
+      <div v-else-if="!moduloDetectado" class="sin-permiso-box">
+        <h2>⚠️ Módulo no encontrado</h2>
+        <p>La ruta {{ route.path }} no existe en la base de datos.</p>
+      </div>
 
-      <tbody>
-        <tr v-for="(r, index) in registrosPaginados" :key="index">
-          <td>{{ r.nombre }}</td>
-          <td>{{ r.descripcion }}</td>
-          <td>{{ r.estado }}</td>
-          <td>
-            <button v-if="puedeEditar(moduloId)" @click="editar(r, index)">
-              ✏️
-            </button>
-            <button v-if="puedeEliminar(moduloId)" @click="eliminar(index)">
-              🗑️
-            </button>
-          </td>
-        </tr>
+      <div v-else-if="permisosDelModulo.consultar">
+        <h2>Módulo: {{ moduloDetectado.strnombremodulo }}</h2>
 
-        <tr v-if="registros.length === 0">
-          <td colspan="4">Sin registros</td>
-        </tr>
-      </tbody>
-    </table>
+        <div class="barra-superior">
+          <input v-model="filtro" placeholder="Buscar..." />
 
-    <Pagination
-      :paginaActual="paginaActual"
-      :totalPaginas="totalPaginas"
-      @cambiar="cambiarPagina"
-    />
+          <div class="acciones-derecha">
+            <button v-if="permisosDelModulo.agregar" class="nuevo" @click="abrirModal" title="Nuevo">➕</button>
+            <button v-if="permisosDelModulo.imprimir" class="imprimir" @click="imprimir" title="Imprimir">🖨️</button>
+            <button v-if="permisosDelModulo.bitacora" class="excel" @click="exportarExcel" title="Exportar Excel">📊</button>
+          </div>
+        </div>
 
-    <!-- MODAL -->
-    <div v-if="modal" class="modal">
-      <div class="modal-body">
-        <h3>{{ editando ? "Editar" : "Nuevo" }}</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Nombre</th>
+              <th>Descripción</th>
+              <th>Estado</th>
+              <th v-if="permisosDelModulo.editar || permisosDelModulo.eliminar">Acciones</th>
+            </tr>
+          </thead>
 
-        <input v-model="form.nombre" placeholder="Nombre" />
-        <input v-model="form.descripcion" placeholder="Descripción" />
+          <tbody>
+            <tr v-for="(r, index) in registrosPaginados" :key="index">
+              <td>{{ r.nombre }}</td>
+              <td>{{ r.descripcion }}</td>
+              <td>{{ r.estado }}</td>
+              <td v-if="permisosDelModulo.editar || permisosDelModulo.eliminar">
+                <button v-if="permisosDelModulo.editar" class="btn-editar" @click="editar(r, index)">✏️</button>
+                <button v-if="permisosDelModulo.eliminar" class="btn-eliminar" @click="eliminar(index)">🗑️</button>
+              </td>
+            </tr>
 
-        <select v-model="form.estado">
-          <option>Activo</option>
-          <option>Inactivo</option>
-        </select>
+            <tr v-if="registros.length === 0">
+              <td :colspan="permisosDelModulo.editar || permisosDelModulo.eliminar ? 4 : 3">Sin registros guardados</td>
+            </tr>
+          </tbody>
+        </table>
 
-        <div class="acciones">
-          <button @click="guardar">Guardar</button>
-          <button @click="cerrarModal">Cancelar</button>
+        <Pagination :paginaActual="paginaActual" :totalPaginas="totalPaginas" @cambiar="cambiarPagina" />
+
+        <div v-if="modal" class="modal">
+          <div class="modal-body">
+            <h3>{{ editando ? "Editar" : "Nuevo" }} Registro</h3>
+            <input v-model="form.nombre" placeholder="Nombre" />
+            <input v-model="form.descripcion" placeholder="Descripción" />
+            <select v-model="form.estado">
+              <option>Activo</option>
+              <option>Inactivo</option>
+            </select>
+            <div class="acciones">
+              <button @click="guardar">Guardar</button>
+              <button class="btn-cancelar" @click="cerrarModal">Cancelar</button>
+            </div>
+          </div>
         </div>
       </div>
+
+      <div v-else class="sin-permiso-box">
+        <h2>🚫 Acceso Denegado</h2>
+        <p>No tienes permiso para consultar este módulo.</p>
+      </div>
+
     </div>
   </div>
 </template>
 
 <style scoped>
-.container {
-  padding: 30px;
-  background: #f5f7fb;
-  min-height: 100vh;
-}
-
-h2 {
-  margin-bottom: 20px;
-  color: #1e3a5f;
-}
-
-/* 🔥 BARRA SUPERIOR */
-.barra-superior {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: #e9edf5;
-  padding: 15px;
-  border-radius: 10px;
-  margin-bottom: 20px;
-}
-
-.barra-superior input {
-  padding: 8px 12px;
-  border-radius: 6px;
-  border: 1px solid #ccc;
-  width: 250px;
-}
-
-.acciones-derecha {
-  display: flex;
-  gap: 10px;
-}
-
-.acciones-derecha button {
-  width: 45px;
-  height: 45px;
-  border-radius: 8px;
-  font-size: 18px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.nuevo {
-  background: #4caf50;
-  color: white;
-}
-.imprimir {
-  background: #2196f3;
-  color: white;
-}
-.excel {
-  background: #2e7d32;
-  color: white;
-}
-
-/* TABLA */
-table {
-  width: 100%;
-  border-collapse: collapse;
-  background: white;
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
-}
-
-th {
-  background: #1e3a5f;
-  color: white;
-  padding: 12px;
-}
-
-td {
-  padding: 10px;
-  border-bottom: 1px solid #eee;
-  text-align: center;
-}
-
-tr:hover {
-  background: #f2f6ff;
-}
-
-td button:first-child {
-  background: #ffc107;
-}
-td button:last-child {
-  background: #e53935;
-  color: white;
-}
-
-/* MODAL */
-.modal {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.55);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.modal-body {
-  background: white;
-  padding: 30px;
-  width: 420px;
-  border-radius: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.modal-body input,
-.modal-body select {
-  padding: 9px;
-  border-radius: 6px;
-  border: 1px solid #ccc;
-}
-
-.acciones {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 15px;
-}
-
-.acciones button:first-child {
-  background: #4caf50;
-  color: white;
-}
-.acciones button:last-child {
-  background: #e53935;
-  color: white;
-}
-
-.sin-permiso {
-  color: red;
-  font-weight: bold;
-}
+.pagina-completa { width: 100%; min-height: 100vh; background: #f5f7fb; }
+.container { padding: 30px; }
+h2 { margin-bottom: 20px; color: #1e3a5f; }
+.cargando-box, .sin-permiso-box { text-align: center; padding: 40px; background: white; border-radius: 10px; margin-top: 20px; }
+.sin-permiso-box h2 { color: #d32f2f; }
+.barra-superior { display: flex; justify-content: space-between; align-items: center; background: #e9edf5; padding: 15px; border-radius: 10px; margin-bottom: 20px; }
+.barra-superior input { padding: 8px 12px; border-radius: 6px; border: 1px solid #ccc; width: 250px; }
+.acciones-derecha { display: flex; gap: 10px; }
+.acciones-derecha button { width: 45px; height: 45px; border-radius: 8px; font-size: 18px; cursor: pointer; border: none; }
+.nuevo { background: #4caf50; color: white; }
+.imprimir { background: #2196f3; color: white; }
+.excel { background: #2e7d32; color: white; }
+table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1); }
+th { background: #1e3a5f; color: white; padding: 12px; }
+td { padding: 10px; border-bottom: 1px solid #eee; text-align: center; }
+tr:hover { background: #f2f6ff; }
+.btn-editar { background: #ffc107; border: none; padding: 8px; border-radius: 4px; cursor: pointer; margin-right: 5px; }
+.btn-eliminar { background: #e53935; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer; }
+.modal { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.55); display: flex; justify-content: center; align-items: center; }
+.modal-body { background: white; padding: 30px; width: 420px; border-radius: 10px; display: flex; flex-direction: column; gap: 12px; }
+.modal-body input, .modal-body select { padding: 9px; border-radius: 6px; border: 1px solid #ccc; }
+.acciones { display: flex; justify-content: space-between; margin-top: 15px; }
+.acciones button { padding: 10px 15px; border: none; border-radius: 6px; cursor: pointer; color: white; font-weight: bold; background: #4caf50;}
+.acciones .btn-cancelar { background: #e53935; }
 </style>
