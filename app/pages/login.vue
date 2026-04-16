@@ -87,7 +87,7 @@ const login = async () => {
 
     console.log("Login exitoso, cargando permisos...");
 
-    // SOLO ESTO (IMPORTANTE)
+
     await init();
     await nextTick();
      console.log("MODULOS:", modulos.value);
