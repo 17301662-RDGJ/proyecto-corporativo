@@ -1,21 +1,16 @@
-import { createClient } from "@supabase/supabase-js";
+import { serverSupabaseClient } from '#supabase/server';
 
 export default defineEventHandler(async (event) => {
   try {
     const body = await readBody(event);
-
     console.log("📩 BODY:", body);
 
     if (!body.email) {
       return { error: "El correo es obligatorio" };
     }
 
-    const config = useRuntimeConfig();
-
-    const supabase = createClient(
-      config.public.supabaseUrl,
-      config.public.supabaseKey,
-    );
+    // Instancia limpia y sin leer configuraciones a mano
+    const supabase = await serverSupabaseClient(event);
 
     const { error } = await supabase.auth.resetPasswordForEmail(body.email, {
       redirectTo: "http://localhost:3000/cambiar-password",

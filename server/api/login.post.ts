@@ -1,11 +1,6 @@
 import { defineEventHandler, readBody } from "h3";
-import { createClient } from "@supabase/supabase-js";
+import { serverSupabaseClient } from '#supabase/server';
 import bcrypt from "bcryptjs";
-
-const supabase = createClient(
-  process.env.NUXT_PUBLIC_SUPABASE_URL!,
-  process.env.NUXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY!,
-);
 
 export default defineEventHandler(async (event) => {
   const body = await readBody(event);
@@ -14,6 +9,9 @@ export default defineEventHandler(async (event) => {
   if (!nombreusuario || !password) {
     return { success: false, message: "Faltan datos" };
   }
+
+  // Ahora se inicializa DE FORMA SEGURA, adentro de la petición
+  const supabase = await serverSupabaseClient(event);
 
   const { data: user, error } = await supabase
     .from("usuarios")
@@ -28,7 +26,6 @@ export default defineEventHandler(async (event) => {
   const valid = bcrypt.compareSync(password, user.password);
   if (!valid) return { success: false, message: "Contraseña incorrecta" };
 
-  // Retornamos solo datos necesarios
   return {
     success: true,
     user: { id: user.id, nombreusuario: user.nombreusuario },

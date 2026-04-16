@@ -107,15 +107,18 @@ const generarRuta = (modulo) => {
   cargado.value = true;
 });*/
 onMounted(async () => {
-  await init();
+  // 1. Rescatamos al usuario del almacenamiento local
+  const usrLocal = process.client
+    ? JSON.parse(localStorage.getItem("usuario"))
+    : null;
 
-  // FORZAR CARGA DE PERMISOS
-  if (usuario.value?.idperfil) {
-    //await refrescarPermisos();
+  if (usrLocal) {
+    // 2. Le pasamos el usuario al init para que cargue los 14 módulos que vimos en consola
+    await init(usrLocal);
   }
 
-  console.log("MODULOS:", modulos.value);
-  console.log("PERMISOS:", permisos.value);
+  console.log("MODULOS CARGADOS:", modulos.value);
+  console.log("PERMISOS CARGADOS:", permisos.value);
 
   cargado.value = true;
 });

@@ -1,7 +1,9 @@
 <script setup>
 import { ref, onMounted, computed } from "vue";
 import { usePermisos } from "~/composables/usePermisos";
-const { cargarPermisos, puedeConsultar, moduloActual } = usePermisos();
+
+// 1. Extraemos 'init' (que es la función real que creaste)
+const { init, modulosPermitidos } = usePermisos();
 
 definePageMeta({
   middleware: ["auth", "permiso"],
@@ -9,7 +11,6 @@ definePageMeta({
 
 const fechaHora = ref("");
 const usuario = ref(null);
-
 
 /* SALUDO DINÁMICO */
 const saludo = computed(() => {
@@ -32,7 +33,8 @@ onMounted(async () => {
 
   if (usr) {
     usuario.value = usr;
-    await cargarPermisos(usr.idperfil);
+    // ¡Le pasamos el usuario aquí!
+    await init(usr);
   }
 
   const actualizarHora = () => {
@@ -42,7 +44,6 @@ onMounted(async () => {
   actualizarHora();
   setInterval(actualizarHora, 1000);
 });
-
 </script>
 
 <template>

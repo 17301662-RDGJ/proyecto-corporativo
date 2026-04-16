@@ -1,11 +1,11 @@
 import jwt from "jsonwebtoken";
-import { createClient } from "@supabase/supabase-js";
+import { serverSupabaseClient } from '#supabase/server';
 
 export default defineEventHandler(async (event) => {
   const body = await readBody(event);
-  const config = useRuntimeConfig();
-
-  const supabase = createClient(config.supabaseUrl, config.supabaseKey);
+  
+  // Así se llama a Supabase correctamente en Nuxt 3
+  const supabase = await serverSupabaseClient(event);
 
   const { data: user, error } = await supabase
     .from("usuario")
@@ -30,12 +30,10 @@ export default defineEventHandler(async (event) => {
     return { message: "Usuario inactivo" };
   }
 
-  //const token = jwt.sign({ id: user.id, perfil: user.idperfil }, "secret", {
-  //expiresIn: "2h",
   const token = jwt.sign({ id: user.id }, "secret", { expiresIn: "2h" });
 
   return {
     token,
-    usuario: user, //
+    usuario: user, 
   };
 });

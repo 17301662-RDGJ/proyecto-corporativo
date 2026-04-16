@@ -2,41 +2,41 @@ import { ref, computed } from 'vue'
 
 export const usePermisos = () => {
   const supabase = useSupabaseClient()
-  const user = useSupabaseUser()
   
   const usuarioData = ref(null)
   const todosLosModulos = ref([])
   const misPermisos = ref([])
   const cargando = ref(false)
 
-  const init = async () => {
-    if (!user.value || cargando.value) return
+  const init = async (usrLocal) => {
+    // Validamos que el usuario tenga el idperfil (UUID) que pusiste en el INSERT
+    if (!usrLocal || !usrLocal.idperfil || cargando.value) return
     cargando.value = true
 
     try {
-      // 1. Obtener datos del usuario logueado y su perfil [cite: 20, 28]
-      const { data: uData } = await supabase
-        .from('usuario')
+      usuarioData.value = usrLocal
+
+      // 1. Traer todos los módulos base
+      const { data: mData, error: errMod } = await supabase
+        .from('modulo')
         .select('*')
-        .eq('strCorreo', user.value.email)
-        .single()
       
-      if (uData) {
-        usuarioData.value = uData
+      if (errMod) throw errMod
+      todosLosModulos.value = mData || []
 
-        // 2. Traer todos los módulos base [cite: 31, 35]
-        const { data: mData } = await supabase
-          .from('modulo')
-          .select('*')
-        todosLosModulos.value = mData || []
+      // 2. Traer los permisos específicos usando el UUID del perfil
+      const { data: pData, error: errPerm } = await supabase
+        .from('permisos_perfil')
+        .select('*')
+        .eq('idperfil', usrLocal.idperfil)
+      
+      if (errPerm) throw errPerm
+      misPermisos.value = pData || []
 
-        // 3. Traer los permisos específicos para el perfil del usuario 
-        const { data: pData } = await supabase
-          .from('permisos_perfil')
-          .select('*')
-          .eq('idperfil', uData.idperfil)
-        misPermisos.value = pData || []
-      }
+      // DEBUG: Para ver en consola si llegaron datos reales
+      console.log("Módulos desde DB:", todosLosModulos.value.length)
+      console.log("Permisos desde DB:", misPermisos.value.length)
+      
     } catch (error) {
       console.error("Error cargando seguridad:", error)
     } finally {
@@ -44,28 +44,29 @@ export const usePermisos = () => {
     }
   }
 
-  // REGLA DE EVALUACIÓN: Solo mostrar módulos con al menos una acción habilitada 
+  // AQUÍ ESTABA EL ERROR DE FILTRADO
   const modulosPermitidos = computed(() => {
-    if (!misPermisos.value.length) return []
+    if (!misPermisos.value.length || !todosLosModulos.value.length) return []
 
     return todosLosModulos.value.filter(mod => {
-      // Buscamos si existe un registro de permiso para este módulo
+      // Buscamos el permiso usando 'idmodulo' contra el 'id' del módulo
       const permiso = misPermisos.value.find(p => p.idmodulo === mod.id)
+      
       if (!permiso) return false
 
-      // Un módulo es visible solo si tiene al menos una acción en TRUE 
+      // Un módulo es visible solo si tiene al menos una acción en TRUE
+      // Verificamos que existan las columnas exactas de tu INSERT
       return (
-        permiso.agregar || 
-        permiso.editar || 
-        permiso.eliminar || 
-        permiso.consultar || 
-        permiso.imprimir || 
-        permiso.bitacora
+        permiso.agregar === true || 
+        permiso.editar === true || 
+        permiso.eliminar === true || 
+        permiso.consultar === true || 
+        permiso.imprimir === true || 
+        permiso.bitacora === true
       )
     })
   })
 
-  // Función para obtener los permisos de un módulo específico (útil para botones CRUD) [cite: 44]
   const obtenerPermisosModulo = (idModulo) => {
     return misPermisos.value.find(p => p.idmodulo === idModulo) || {
       agregar: false, editar: false, eliminar: false, consultar: false, imprimir: false
