@@ -5,7 +5,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
   if (process.client) {
     const usuario = useState("usuario");
 
-    // 2. Intentar recuperar la sesión del localStorage si el estado está vacío (F5)
+    // 2. Intentar recuperar la sesión del localStorage si el estado está vacío
     if (!usuario.value) {
       const stored = localStorage.getItem("usuario");
       if (stored) {
@@ -24,8 +24,8 @@ export default defineNuxtRouteMiddleware(async (to) => {
     const supabase = useSupabaseClient();
 
     /** * 5. BUSCAR MÓDULO (Optimizado)
-     * Normalizamos la ruta: quitamos la barra diagonal final y convertimos a minúsculas
-     * Usamos .ilike para que la búsqueda en la base de datos sea insensible a mayúsculas
+     Normalizamos la ruta: quitamos la barra diagonal final y convertimos a minúsculas
+     Usamos .ilike para que la búsqueda en la base de datos sea insensible a mayúsculas
      */
     const rutaBusqueda = to.path.replace(/\/$/, "");
 
@@ -43,8 +43,9 @@ export default defineNuxtRouteMiddleware(async (to) => {
 
     /**
      * 6. VERIFICAR PERMISO DE CONSULTA
-     * El PDF exige que si no tiene permiso para la URL, se redireccione.
-     * Validamos que el bit de 'consultar' sea true.
+     En los requisitos que tenemos por el profesor especifica que si no tiene permiso para la URL, 
+     se redireccione al login.
+     Validamos que el bit de 'consultar' sea true.
      */
     const { data: permiso, error: errorPerm } = await supabase
       .from("permisos_perfil")
