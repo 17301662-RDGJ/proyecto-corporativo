@@ -128,6 +128,49 @@ const limpiar = () => {
   filtroEstado.value = "";
 };
 
+
+
+/* ============================================================
+   🖨️ IMPRIMIR Y EXPORTAR
+   ============================================================ */
+
+const imprimir = () => {
+  window.print();
+};
+
+const exportarExcel = () => {
+  if (usuariosFiltrados.value.length === 0) {
+    Swal.fire("Sin datos", "No hay registros para exportar", "info");
+    return;
+  }
+
+  // 1. Damos formato a los datos (traducimos IDs a texto)
+  const datosParaExcel = usuariosFiltrados.value.map((u) => {
+    // Buscamos el nombre del perfil
+    const perfilObj = perfiles.value.find((p) => p.id === u.idperfil);
+    
+    return {
+      "Nombre de Usuario": u.strnombreusuario,
+      "Perfil": perfilObj ? perfilObj.strnombreperfil : "Sin perfil",
+      "Estado": u.idestadousuario === 1 ? "Activo" : "Inactivo",
+      "Correo Electrónico": u.strcorreo || "N/A",
+      "Número Celular": u.strnumerocelular || "N/A"
+    };
+  });
+
+  // 2. Creamos la hoja de Excel usando la librería XLSX
+  const worksheet = XLSX.utils.json_to_sheet(datosParaExcel);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Usuarios");
+
+  // 3. Generamos el archivo
+  const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+  const dataBlob = new Blob([excelBuffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=UTF-8" });
+
+  // 4. Descargamos usando file-saver
+  saveAs(dataBlob, "Reporte_Usuarios.xlsx");
+};
+
 const guardar = async () => {
   let urlImagen = usuario.value.strfoto;
   try {
@@ -243,8 +286,10 @@ onMounted(async () => {
 
         <div class="filtros-der">
           <button v-if="misPermisos.agregar" class="icon-btn nuevo" @click="nuevo" title="Nuevo Usuario">➕</button>
-          <button v-if="misPermisos.consultar" class="icon-btn excel" @click="exportarExcel" title="Exportar Excel">📊</button>
-          <button v-if="misPermisos.consultar" class="icon-btn imprimir" @click="imprimir" title="Imprimir">🖨️</button>
+  
+          <button v-if="misPermisos.bitacora" class="icon-btn excel" @click="exportarExcel" title="Exportar Excel">📊</button>
+  
+          <button v-if="misPermisos.imprimir" class="icon-btn imprimir" @click="imprimir" title="Imprimir">🖨️</button>
         </div>
       </div>
 
