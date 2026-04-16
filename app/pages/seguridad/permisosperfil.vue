@@ -10,8 +10,8 @@ definePageMeta({
 
 const supabase = useSupabaseClient();
 
-/* PERMISOS GLOBAL */
-const { init, puedeConsultar, puedeEditar, refrescarPermisos } = usePermisos();
+/* 🔐 PERMISOS GLOBAL */
+const { init, refrescarPermisos, obtenerPermisosModulo } = usePermisos();
 
 /* DATA */
 const perfiles = ref([]);
@@ -34,6 +34,7 @@ const mostrarNotificacion = (mensaje, tipo = "success") => {
 
 /* MODULO ACTUAL */
 const moduloActual = computed(() => {
+  if (!modulos.value.length) return null;
   return modulos.value.find(
     (m) => m.strnombremodulo.toLowerCase().replace(/\s/g, "") === "permisosperfil"
   );
@@ -62,7 +63,7 @@ const toggleSeleccionarTodos = () => {
   });
 };
 
-/* CARGAS */
+/* 📦 CARGAS */
 const cargarPerfiles = async () => {
   const { data } = await supabase.from("perfil").select("*").order("strnombreperfil");
   perfiles.value = data || [];
@@ -83,7 +84,6 @@ const cargarPermisosPerfil = async (perfilId) => {
     .select("*")
     .eq("idperfil", perfilId);
 
-  // Mapeamos para que los datos de la DB sean reactivos en los checkboxes
   permisos.value = (data || []).map(p => ({
     ...p,
     agregar: !!p.agregar,
@@ -95,7 +95,7 @@ const cargarPermisosPerfil = async (perfilId) => {
   }));
 };
 
-/* WATCH: Este es el motor que llena la tabla al cambiar el select */
+/* WATCH */
 watch(perfilSeleccionado, async (nuevo) => {
   seleccionarTodos.value = false;
   if (nuevo) {
@@ -103,14 +103,12 @@ watch(perfilSeleccionado, async (nuevo) => {
   }
 });
 
-/* OBTENER PERMISO - CORREGIDO PARA UUID Y PERSISTENCIA */
+/* 🔍 OBTENER PERMISO */
 const obtenerPermiso = (perfilId, moduloId) => {
-  // Buscamos en el arreglo lo que ya bajó de Supabase
   let permiso = permisos.value.find(
     (p) => String(p.idperfil) === String(perfilId) && String(p.idmodulo) === String(moduloId)
   );
 
-  // Si no existe, creamos el objeto vacío para ese módulo
   if (!permiso) {
     permiso = {
       idperfil: perfilId,
@@ -128,41 +126,62 @@ const obtenerPermiso = (perfilId, moduloId) => {
   return permiso;
 };
 
-/* GUARDAR */
+
+
 const guardarPermisos = async () => {
   try {
     if (!perfilSeleccionado.value) {
-      mostrarNotificacion("Seleccione un perfil", "error");
+      mostrarNotificacion("Seleccione un perfil primero", "error");
       return;
     }
 
     const permisosAGuardar = permisos.value
       .filter(p => String(p.idperfil) === String(perfilSeleccionado.value))
-      .map((p) => ({
-        ...(p.id ? { id: p.id } : {}),
-        idperfil: p.idperfil,
-        idmodulo: p.idmodulo,
-        agregar: !!p.agregar,
-        editar: !!p.editar,
-        eliminar: !!p.eliminar,
-        consultar: !!p.consultar,
-        imprimir: !!p.imprimir,
-        bitacora: !!p.bitacora,
-        eliminados: !!p.eliminados,
-      }));
+      .map((p) => {
+        const obj = {
+          idperfil: p.idperfil,
+          idmodulo: p.idmodulo,
+          agregar: !!p.agregar,
+          editar: !!p.editar,
+          eliminar: !!p.eliminar,
+          consultar: !!p.consultar,
+          imprimir: !!p.imprimir,
+          bitacora: !!p.bitacora,
+          eliminados: !!p.eliminados,
+        };
+
+        if (p.id && p.id !== null && p.id !== 'null') {
+          obj.id = p.id;
+        } else {
+          obj.id = crypto.randomUUID();
+        }
+
+        return obj;
+      });
 
     const { error } = await supabase
       .from("permisos_perfil")
-      .upsert(permisosAGuardar, { onConflict: "idperfil,idmodulo" });
+      .upsert(permisosAGuardar, {
+        onConflict: "idperfil,idmodulo", 
+      });
 
     if (error) throw error;
 
-    mostrarNotificacion("Permisos guardados correctamente");
-    await refrescarPermisos();
+    mostrarNotificacion("¡Permisos actualizados con éxito!");
+    
+    // 🟢 EL FIX ESTÁ AQUÍ 🟢
+    // En lugar de refrescarPermisos(), usamos init() para recargar el sistema
+    const usr = process.client ? JSON.parse(localStorage.getItem("usuario")) : null;
+    if (usr) {
+      await init(usr); 
+    }
+    
+    // Recargamos la tablita
     await cargarPermisosPerfil(perfilSeleccionado.value);
+
   } catch (err) {
-    console.error("ERROR:", err);
-    mostrarNotificacion("Error al guardar: " + err.message, "error");
+    console.error("Error al guardar:", err);
+    mostrarNotificacion("Error: No se pudo guardar", "error");
   }
 };
 
@@ -230,7 +249,6 @@ onMounted(async () => {
           </td>
         </tr>
       </tbody>
-
       <tbody v-else>
         <tr>
           <td colspan="7">{{ perfilSeleccionado ? 'Cargando módulos...' : 'Seleccione un perfil para ver la tabla' }}</td>
@@ -239,9 +257,7 @@ onMounted(async () => {
     </table>
 
     <div class="acciones" v-if="perfilSeleccionado">
-      <button class="guardar" @click="guardarPermisos">
-        Guardar Cambios
-      </button>
+      <button class="guardar" @click="guardarPermisos">Guardar Cambios</button>
     </div>
   </div>
 </template>
@@ -255,8 +271,9 @@ onMounted(async () => {
 .check-todos { display: flex; align-items: center; gap: 5px; font-weight: 500; cursor: pointer; }
 table { width: 100%; background: white; border-collapse: collapse; }
 th { background: #1e3a5f; color: white; padding: 10px; }
-td { padding: 10px; text-align: center; border-bottom: 1px solid #eee; }
-.guardar { background: #4caf50; color: white; padding: 10px 25px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; margin-top: 20px; }
+td { padding: 10px; text-align: center; border-bottom: 1px solid #eee; border: 1px solid #f0f0f0; }
+.guardar { background: #4caf50; color: white; padding: 10px 25px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; margin-top: 20px; transition: 0.3s; }
+.guardar:hover { background: #43a047; }
 .notificacion { position: fixed; top: 20px; right: 20px; padding: 14px; border-radius: 8px; color: white; z-index: 1000; }
 .success { background: #4caf50; }
 .error { background: #e53935; }
